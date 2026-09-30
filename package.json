@@ -1,0 +1,29 @@
+{
+  "name": "campus-pulse-hci",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "HCI-based platform for student issue reporting, feedback, resolution tracking, and campus improvement.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "vite": "^5.4.21"
+  },
+  "dependencies": {
+    "lucide-react": "^1.49.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6"
+  }
+}
