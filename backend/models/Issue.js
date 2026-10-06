@@ -1,0 +1,104 @@
+const mongoose = require("mongoose");
+
+const issueSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    description: {
+      type: String,
+      required: true,
+    },
+
+    type: {
+      type: String,
+      enum: [
+        "problem",
+        "improvement",
+        "safety",
+        "question",
+        "appreciation",
+      ],
+      default: "problem",
+    },
+
+    category: {
+      type: String,
+      required: true,
+    },
+
+    subcategory: {
+      type: String,
+      default: null,
+    },
+
+    location: {
+      type: String,
+      required: true,
+    },
+
+    specificLocation: {
+      type: String,
+      default: null,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "submitted",
+        "under_review",
+        "in_progress",
+        "resolved",
+        "reopened",
+      ],
+      default: "submitted",
+    },
+
+    isAnonymous: {
+      type: Boolean,
+      default: false,
+    },
+
+    reportedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    assignedDepartment: {
+      type: String,
+      default: null,
+    },
+
+    supporters: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    commentsCount: {
+      type: Number,
+      default: 0,
+    },
+
+    verificationStatus: {
+      type: String,
+      enum: [
+        "not_required",
+        "pending",
+        "verified",
+        "rejected",
+      ],
+      default: "not_required",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Issue", issueSchema);
