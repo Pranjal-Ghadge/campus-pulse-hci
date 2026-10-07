@@ -48,6 +48,7 @@ function Signup() {
         password: form.password,
       });
       setSuccess("Account created successfully. Please log in.");
+      setIsSubmitting(false);
     } catch (requestError) {
       setError(requestError.message || "Unable to create your account. Please try again.");
       setIsSubmitting(false);

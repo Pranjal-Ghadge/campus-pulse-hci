@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertTriangle, Lightbulb, Shield, HelpCircle, Camera, Check, CheckCircle, X, Heart } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Lightbulb, Shield, HelpCircle, Camera, Check, CheckCircle, X, Heart, Trash2 } from "lucide-react";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useStudent } from "../context/StudentContext";
@@ -10,6 +10,7 @@ function Report() {
   const navigate = useNavigate();
   const routeLocation = useLocation();
   const { settings } = useStudent();
+  const photoInputRef = useRef(null);
   const validIssueTypes = ["problem", "improvement", "safety", "question", "appreciation"];
   const initialIssueType = validIssueTypes.includes(routeLocation.state?.issueType)
     ? routeLocation.state.issueType
@@ -28,6 +29,8 @@ function Report() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [photoError, setPhotoError] = useState("");
+  const descriptionIsValid = description.trim().length >= 10;
+  const activeStep = !descriptionIsValid ? 1 : !location ? 2 : photo ? 4 : 3;
 
   const handleDescriptionChange = (e) => {
     const value = e.target.value;
@@ -50,14 +53,12 @@ function Report() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      setPhoto(null);
       setPhotoError("Choose a photo smaller than 5 MB.");
       e.target.value = "";
       return;
     }
 
     if (!['image/png', 'image/jpeg'].includes(file.type)) {
-      setPhoto(null);
       setPhotoError("Choose a PNG or JPG image.");
       e.target.value = "";
       return;
@@ -65,6 +66,14 @@ function Report() {
 
     setPhoto(file);
     setPhotoError("");
+  };
+
+  const removePhoto = () => {
+    setPhoto(null);
+    setPhotoError("");
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
   };
 
   const validateForm = () => {
@@ -83,9 +92,7 @@ function Report() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
+  const submitIssue = async () => {
     if (isSubmitting || !validateForm()) {
       return;
     }
@@ -111,10 +118,19 @@ function Report() {
       setShowSuccessModal(true);
     } catch (error) {
       console.error("Error submitting issue:", error);
-      setSubmitError(error.message || "Unable to submit your issue right now. Please try again.");
+      setSubmitError(
+        import.meta.env.DEV && error instanceof Error && error.message
+          ? error.message
+          : "Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await submitIssue();
   };
 
   const handleSuccessModalClose = () => {
@@ -161,44 +177,48 @@ function Report() {
 
         {/* Header */}
         <div className="mb-8">
-          <p className="mb-2 text-sm font-medium text-sky-600">
-            Campus Voice
-          </p>
-
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Raise an Issue
-          </h1>
-
-          <p className="mt-2 text-slate-500">
-            Tell us what happened. We'll help route it to the right team.
-          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-sky-700 hover:text-sky-800"
+          >
+            <ArrowLeft size={16} />
+            Back to dashboard
+          </button>
+          <p className="mb-2 text-sm font-medium text-sky-600">Campus Voice</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Raise an Issue</h1>
+          <p className="mt-2 text-slate-500">Tell us what happened. We'll help route it to the right team.</p>
         </div>
 
-        {/* Validation Error */}
+        {/* Submission Error */}
         {submitError && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="mb-6 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
-              <AlertTriangle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
-              <p role="alert" className="text-sm font-medium text-red-800">{submitError}</p>
+              <AlertTriangle size={20} className="mt-0.5 flex-shrink-0 text-red-600" />
+              <div>
+                <p role="alert" className="text-sm font-semibold text-red-800">Unable to submit your issue.</p>
+                <p className="mt-1 text-sm text-red-700">{submitError}</p>
+              </div>
             </div>
+            <Button type="button" variant="secondary" disabled={isSubmitting} onClick={submitIssue} className="shrink-0">
+              {isSubmitting ? "Retrying..." : "Retry"}
+            </Button>
           </div>
         )}
 
-        {/* Progress / reassurance */}
+        {/* Form progress */}
         <div className="mb-6 rounded-2xl border border-sky-100 bg-sky-50 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-500 text-white">
-              <Check size={18} />
-            </div>
-
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="font-semibold text-slate-800">
-                It only takes a minute
-              </p>
-              <p className="text-sm text-slate-500">
-                Describe the issue and we'll take care of the rest.
-              </p>
+              <p className="font-semibold text-slate-800">A few details help us send this to the right team</p>
+              <p className="mt-1 text-sm text-slate-500">Photo and anonymous reporting are optional.</p>
             </div>
+            <span className="shrink-0 text-sm font-medium text-sky-700" aria-live="polite">Step {activeStep} of 5</span>
+          </div>
+          <div className="mt-3 grid grid-cols-5 gap-1.5" role="progressbar" aria-label="Issue report progress" aria-valuemin={1} aria-valuemax={5} aria-valuenow={activeStep}>
+            {[1, 2, 3, 4, 5].map((step) => (
+              <span key={step} className={`h-1.5 rounded-full ${step <= activeStep ? "bg-sky-500" : "bg-sky-100"}`} />
+            ))}
           </div>
         </div>
 
@@ -206,9 +226,9 @@ function Report() {
         <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:p-8">
 
           {/* Section 1 */}
-          <div className="mb-8">
+          <div id="section-what-happened" className="mb-8">
             <h2 className="text-lg font-semibold text-slate-900">
-              What would you like to share?
+              1. What happened?
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
@@ -396,9 +416,9 @@ function Report() {
           )}
 
           {/* Section 3 */}
-          <div className="mb-8">
+          <div id="section-where" className="mb-8">
             <h2 className="text-lg font-semibold text-slate-900">
-              Where is this happening?
+              2. Where is this happening?
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
@@ -460,9 +480,9 @@ function Report() {
           </div>
 
           {/* Photo */}
-          <div className="mb-8">
+          <div id="section-photo" className="mb-8">
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              Add a photo
+              3. Add a photo
               <span className="ml-1 font-normal text-gray-400">
                 (optional)
               </span>
@@ -486,6 +506,7 @@ function Report() {
               </p>
 
               <input 
+                ref={photoInputRef}
                 type="file" 
                 accept="image/png,image/jpeg,.png,.jpg,.jpeg" 
                 onChange={handlePhotoChange}
@@ -494,6 +515,21 @@ function Report() {
               />
 
             </label>
+            {photo && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
+                <p className="min-w-0 truncate text-sm text-slate-700">
+                  {photo.name} <span className="text-xs text-slate-500">({(photo.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-slate-600 hover:bg-white hover:text-red-700"
+                >
+                  <Trash2 size={15} />
+                  Remove photo
+                </button>
+              </div>
+            )}
             {photoError && (
               <p role="alert" className="mt-2 text-sm text-red-700">
                 {photoError}
@@ -502,13 +538,13 @@ function Report() {
           </div>
 
           {/* Privacy */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div id="section-privacy" className="rounded-xl border border-gray-200 bg-gray-50 p-4">
 
             <div className="flex items-start justify-between gap-4">
 
               <div>
                 <p className="font-medium text-slate-800">
-                  Report anonymously
+                  4. Report anonymously
                 </p>
 
                 <p className="mt-1 text-sm text-slate-500">
@@ -538,7 +574,7 @@ function Report() {
           </div>
 
           {/* Submit */}
-          <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div id="section-submit" className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
 
             <p className="text-xs text-gray-400">
               Your issue can be tracked after submission.
@@ -558,7 +594,7 @@ function Report() {
                   <span aria-live="polite">Submitting...</span>
                 </span>
               ) : (
-                "Submit Issue →"
+                "5. Submit Issue →"
               )}
             </button>
 

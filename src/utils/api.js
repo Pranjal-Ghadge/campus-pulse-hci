@@ -11,9 +11,10 @@ export async function apiRequest(path, options = {}) {
     },
   });
 
+  const responseText = await response.text();
   let payload = null;
   try {
-    payload = await response.json();
+    payload = responseText ? JSON.parse(responseText) : null;
   } catch {
     payload = null;
   }
@@ -26,7 +27,17 @@ export async function apiRequest(path, options = {}) {
     ) {
       window.dispatchEvent(new Event("campusPulseUnauthorized"));
     }
-    const error = new Error(payload?.message || "The request could not be completed.");
+    const responseMessage = import.meta.env.DEV && responseText
+      ? response.headers.get("content-type")?.includes("text/html")
+        ? new DOMParser()
+          .parseFromString(responseText, "text/html")
+          .body.textContent?.trim()
+          .replace(/\s+/g, " ")
+        : responseText.trim()
+      : "";
+    const error = new Error(
+      payload?.message || responseMessage || "The request could not be completed."
+    );
     error.status = response.status;
     throw error;
   }

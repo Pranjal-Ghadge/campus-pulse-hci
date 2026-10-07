@@ -78,21 +78,18 @@ export function StudentProvider({ children }) {
     return () => window.removeEventListener("campusPulseUnauthorized", handleUnauthorized);
   }, [clearAuthentication]);
 
-  const authenticate = async (endpoint, credentials) => {
-    const { token, user } = await apiRequest(endpoint, {
+  const login = async (credentials) => {
+    const { token, user } = await apiRequest("/api/auth/login", {
       method: "POST",
       body: JSON.stringify(credentials),
     });
     localStorage.setItem("campusPulseToken", token);
     setProfile(user);
     setAuthError("");
-    setAuthFeedback(endpoint === "/api/auth/signup"
-      ? `Account created. Welcome, ${user.name.split(/\s+/)[0] || user.name}.`
-      : `Welcome back, ${user.name.split(/\s+/)[0] || user.name}.`);
+    setAuthFeedback(`Welcome back, ${user.name.split(/\s+/)[0] || user.name}.`);
     return user;
   };
 
-  const login = (credentials) => authenticate("/api/auth/login", credentials);
   const signup = (details) => apiRequest("/api/auth/signup", {
     method: "POST",
     body: JSON.stringify(details),

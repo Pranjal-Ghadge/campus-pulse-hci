@@ -2,16 +2,19 @@ import React, { useState } from 'react';
 import { Home, PlusCircle, FileText, Compass, Bell, HelpCircle, Settings, User, Menu, X, LogOut } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
+import LogoutConfirmation from './LogoutConfirmation';
 import { useStudent } from '../context/StudentContext';
 
 const Sidebar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLogoutConfirmationOpen, setIsLogoutConfirmationOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, logout } = useStudent();
   const studentName = profile.name;
 
   const handleLogout = () => {
+    setIsLogoutConfirmationOpen(false);
     logout();
     navigate('/login', { replace: true });
   };
@@ -107,7 +110,7 @@ const Sidebar = () => {
           </nav>
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => setIsLogoutConfirmationOpen(true)}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-600 transition-colors hover:bg-red-50 hover:text-red-700"
           >
             <LogOut size={18} />
@@ -203,7 +206,7 @@ const Sidebar = () => {
               </div>
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => setIsLogoutConfirmationOpen(true)}
                 className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-600 transition-colors hover:bg-red-50 hover:text-red-700"
               >
                 <LogOut size={18} />
@@ -213,6 +216,11 @@ const Sidebar = () => {
           </div>
         </div>
       </div>
+      <LogoutConfirmation
+        isOpen={isLogoutConfirmationOpen}
+        onCancel={() => setIsLogoutConfirmationOpen(false)}
+        onConfirm={handleLogout}
+      />
     </>
   );
 };

@@ -18,7 +18,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-connectDB();
+const databaseReady = connectDB();
 
 app.get("/", (req, res) => {
   res.json({
@@ -78,6 +78,18 @@ const requireAuth = async (req, res, next) => {
     return res.status(500).json({ message: "Unable to verify your session right now." });
   }
 };
+
+const waitForDatabase = async (req, res, next) => {
+  try {
+    await databaseReady;
+    return next();
+  } catch (error) {
+    console.error("Database connection is unavailable:", error.message);
+    return res.status(503).json({ message: "Campus Pulse is temporarily unable to reach the database." });
+  }
+};
+
+app.use("/api", waitForDatabase);
 
 app.post("/api/auth/signup", async (req, res) => {
   const { name, email, password } = req.body || {};
@@ -281,7 +293,10 @@ app.post("/api/issues", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Issue creation failed:", error);
     const statusCode = error.name === "ValidationError" ? 400 : 500;
-    return res.status(statusCode).json({ message: "Unable to submit the issue right now. Please try again." });
+    const message = process.env.NODE_ENV === "production"
+      ? "Unable to submit the issue right now. Please try again."
+      : error.message || "Unable to submit the issue right now. Please try again.";
+    return res.status(statusCode).json({ message });
   }
 });
 
@@ -326,3 +341,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+module.exports = app;

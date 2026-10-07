@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
+import LogoutConfirmation from './components/LogoutConfirmation';
 import Dashboard from './pages/Dashboard';
 import Report from './pages/Report';
 import MyIssues from './pages/MyIssues';
@@ -28,6 +29,14 @@ function LoadingScreen({ message = 'Checking your session...' }) {
 function RequireAuth() {
   const { profile, isAuthLoading, authError, refreshProfile, logout } = useStudent();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isLogoutConfirmationOpen, setIsLogoutConfirmationOpen] = useState(false);
+
+  const confirmLogout = () => {
+    setIsLogoutConfirmationOpen(false);
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   if (isAuthLoading) return <LoadingScreen />;
   if (authError) {
@@ -40,11 +49,16 @@ function RequireAuth() {
             <button type="button" onClick={refreshProfile} className="rounded-lg bg-primary-700 px-4 py-2 text-sm font-medium text-white hover:bg-primary-800">
               Try again
             </button>
-            <button type="button" onClick={logout} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <button type="button" onClick={() => setIsLogoutConfirmationOpen(true)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
               Log out
             </button>
           </div>
         </section>
+        <LogoutConfirmation
+          isOpen={isLogoutConfirmationOpen}
+          onCancel={() => setIsLogoutConfirmationOpen(false)}
+          onConfirm={confirmLogout}
+        />
       </main>
     );
   }
