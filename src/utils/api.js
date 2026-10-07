@@ -1,10 +1,12 @@
 const apiBaseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 export async function apiRequest(path, options = {}) {
+  const token = localStorage.getItem("campusPulseToken");
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
@@ -17,7 +19,16 @@ export async function apiRequest(path, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(payload?.message || "The request could not be completed.");
+    if (
+      response.status === 401 &&
+      path !== "/api/auth/login" &&
+      path !== "/api/auth/signup"
+    ) {
+      window.dispatchEvent(new Event("campusPulseUnauthorized"));
+    }
+    const error = new Error(payload?.message || "The request could not be completed.");
+    error.status = response.status;
+    throw error;
   }
 
   return payload;

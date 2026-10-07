@@ -1,14 +1,7 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { apiRequest } from "../utils/api";
 
 const StudentContext = createContext(null);
-
-const defaultProfile = {
-  name: "Student",
-  email: "student@campus.edu",
-  studentId: "",
-  program: "",
-  year: "",
-};
 
 const defaultSettings = {
   emailNotifications: false,
@@ -18,28 +11,105 @@ const defaultSettings = {
   profileVisible: false,
 };
 
-const readStoredValue = (key, defaults) => {
+const readSettings = () => {
   try {
-    const storedValue = JSON.parse(localStorage.getItem(key) || "null");
-    return storedValue && typeof storedValue === "object"
-      ? { ...defaults, ...storedValue }
-      : defaults;
+    const settings = JSON.parse(localStorage.getItem("campusPulseSettings") || "null");
+    return settings && typeof settings === "object"
+      ? { ...defaultSettings, ...settings }
+      : defaultSettings;
   } catch {
-    return defaults;
+    return defaultSettings;
   }
 };
 
 export function StudentProvider({ children }) {
-  const [profile, setProfile] = useState(() =>
-    readStoredValue("campusPulseProfile", defaultProfile)
-  );
-  const [settings, setSettings] = useState(() =>
-    readStoredValue("campusPulseSettings", defaultSettings)
-  );
+  const [profile, setProfile] = useState(null);
+  const [settings, setSettings] = useState(readSettings);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const [authFeedback, setAuthFeedback] = useState("");
 
-  const saveProfile = (nextProfile) => {
-    localStorage.setItem("campusPulseProfile", JSON.stringify(nextProfile));
-    setProfile(nextProfile);
+  const clearAuthentication = useCallback(() => {
+    localStorage.removeItem("campusPulseToken");
+    setProfile(null);
+    setAuthError("");
+    setAuthFeedback("");
+  }, []);
+  const clearAuthFeedback = useCallback(() => setAuthFeedback(""), []);
+
+  const refreshProfile = useCallback(async () => {
+    const token = localStorage.getItem("campusPulseToken");
+    if (!token) {
+      setProfile(null);
+      setAuthError("");
+      setIsAuthLoading(false);
+      return null;
+    }
+
+    setIsAuthLoading(true);
+    setAuthError("");
+    try {
+      const { user } = await apiRequest("/api/auth/me");
+      setProfile(user);
+      return user;
+    } catch (error) {
+      if (error.status === 401) {
+        localStorage.removeItem("campusPulseToken");
+        setProfile(null);
+      } else {
+        setAuthError(error.message || "Unable to verify your session.");
+      }
+      return null;
+    } finally {
+      setIsAuthLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshProfile();
+  }, [refreshProfile]);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearAuthentication();
+      setIsAuthLoading(false);
+    };
+    window.addEventListener("campusPulseUnauthorized", handleUnauthorized);
+    return () => window.removeEventListener("campusPulseUnauthorized", handleUnauthorized);
+  }, [clearAuthentication]);
+
+  const authenticate = async (endpoint, credentials) => {
+    const { token, user } = await apiRequest(endpoint, {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    });
+    localStorage.setItem("campusPulseToken", token);
+    setProfile(user);
+    setAuthError("");
+    setAuthFeedback(endpoint === "/api/auth/signup"
+      ? `Account created. Welcome, ${user.name.split(/\s+/)[0] || user.name}.`
+      : `Welcome back, ${user.name.split(/\s+/)[0] || user.name}.`);
+    return user;
+  };
+
+  const login = (credentials) => authenticate("/api/auth/login", credentials);
+  const signup = (details) => apiRequest("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(details),
+  });
+
+  const logout = () => {
+    clearAuthentication();
+    setIsAuthLoading(false);
+  };
+
+  const saveProfile = async (nextProfile) => {
+    const { user } = await apiRequest("/api/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify({ name: nextProfile.name }),
+    });
+    setProfile(user);
+    return user;
   };
 
   const saveSettings = (nextSettings) => {
@@ -48,7 +118,22 @@ export function StudentProvider({ children }) {
   };
 
   return (
-    <StudentContext.Provider value={{ profile, settings, saveProfile, saveSettings }}>
+    <StudentContext.Provider
+      value={{
+        profile,
+        settings,
+        saveProfile,
+        saveSettings,
+        login,
+        signup,
+        logout,
+        isAuthLoading,
+        authError,
+        authFeedback,
+        clearAuthFeedback,
+        refreshProfile,
+      }}
+    >
       {children}
     </StudentContext.Provider>
   );

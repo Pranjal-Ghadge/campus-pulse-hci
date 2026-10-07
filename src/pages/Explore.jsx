@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Wifi, Plug, Droplets, Brush, Snowflake, Lightbulb, Search as SearchIcon, MapPin, Tag, MessageCircle, Check, TrendingUp, Users } from "lucide-react";
+import { Wifi, Plug, Droplets, Brush, Snowflake, Lightbulb, Search as SearchIcon, MapPin, Tag, MessageCircle, Check, TrendingUp, Users, Plus } from "lucide-react";
 import Modal from "../components/Modal";
 
 function Explore() {
@@ -150,7 +150,7 @@ function Explore() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-72">
+    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-64">
       <div className="mx-auto max-w-6xl">
 
         {/* Header */}
@@ -161,7 +161,7 @@ function Explore() {
               Campus Community
             </p>
 
-            <h1 className="text-3xl font-bold text-slate-900">
+            <h1 className="text-2xl font-semibold text-slate-900">
               Explore Issues
             </h1>
 
@@ -173,33 +173,34 @@ function Explore() {
           <button
             type="button"
             onClick={() => navigate("/report")}
-            className="rounded-xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600"
+            className="inline-flex items-center rounded-lg bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
           >
-            + Raise an Issue
+            <Plus size={16} className="mr-2" />
+            Raise an Issue
           </button>
 
         </div>
 
         {/* Community Banner */}
-        <div className="mb-7 overflow-hidden rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 p-6 text-white shadow-sm">
+        <div className="mb-7 overflow-hidden rounded-xl border border-blue-100 bg-blue-50 p-5">
 
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 
             <div>
-              <p className="text-lg font-semibold">
+              <p className="text-base font-semibold text-slate-900">
                 Your voice can strengthen an existing issue.
               </p>
 
-              <p className="mt-1 max-w-xl text-sm text-sky-50">
+              <p className="mt-1 max-w-xl text-sm leading-6 text-slate-600">
                 Before reporting something new, check whether another student
                 has already raised it. Supporting an existing issue helps the
                 campus understand its impact.
               </p>
             </div>
 
-            <div className="shrink-0 rounded-xl bg-white/15 px-5 py-4 backdrop-blur-sm">
-              <p className="text-2xl font-bold">248</p>
-              <p className="text-xs text-sky-50">
+            <div className="shrink-0 rounded-lg border border-blue-100 bg-white px-4 py-3">
+              <p className="text-xl font-semibold text-slate-900">248</p>
+              <p className="text-xs text-slate-500">
                 students participating
               </p>
             </div>

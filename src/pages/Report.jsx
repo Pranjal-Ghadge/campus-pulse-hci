@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertTriangle, Lightbulb, Shield, HelpCircle, Camera, Sparkles, Check, CheckCircle, X, Heart } from "lucide-react";
+import { AlertTriangle, Lightbulb, Shield, HelpCircle, Camera, Check, CheckCircle, X, Heart } from "lucide-react";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useStudent } from "../context/StudentContext";
@@ -156,7 +156,7 @@ function Report() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-72">
+    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-64">
       <div className="mx-auto max-w-5xl">
 
         {/* Header */}
@@ -165,7 +165,7 @@ function Report() {
             Campus Voice
           </p>
 
-          <h1 className="text-3xl font-bold text-slate-900">
+          <h1 className="text-2xl font-semibold text-slate-900">
             Raise an Issue
           </h1>
 
@@ -275,7 +275,7 @@ function Report() {
               </div>
 
               <span className="hidden rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-600 sm:block">
-                Smart assistance
+                Category suggestion
               </span>
             </div>
 
@@ -313,12 +313,12 @@ function Report() {
               <div className="flex items-start gap-3">
 
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-amber-500">
-                  <Sparkles size={18} />
+                  <Lightbulb size={18} />
                 </div>
 
                 <div className="flex-1">
                   <p className="font-semibold text-slate-800">
-                    We can help categorize this
+                    Suggested category
                   </p>
 
                   <p className="mt-1 text-sm text-slate-500">

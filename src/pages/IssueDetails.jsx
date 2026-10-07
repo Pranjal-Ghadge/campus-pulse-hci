@@ -34,7 +34,7 @@ function IssueDetails() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-gray-50 px-6 py-8 pt-20 lg:ml-72 lg:px-10 lg:pt-8">
+      <main className="min-h-screen bg-gray-50 px-6 py-8 pt-20 lg:ml-64 lg:px-10 lg:pt-8">
         <div role="status" className="mx-auto max-w-4xl rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
           Loading issue...
         </div>
@@ -44,7 +44,7 @@ function IssueDetails() {
 
   if (loadError || !issue) {
     return (
-      <main className="min-h-screen bg-gray-50 px-6 py-8 pt-20 lg:ml-72 lg:px-10 lg:pt-8">
+      <main className="min-h-screen bg-gray-50 px-6 py-8 pt-20 lg:ml-64 lg:px-10 lg:pt-8">
         <div role="alert" className="mx-auto max-w-4xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:p-8">
           <h1 className="text-2xl font-bold text-slate-900">
             {loadError ? "Unable to load issue" : "Issue not found"}
@@ -66,7 +66,7 @@ function IssueDetails() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-8 pt-20 lg:ml-72 lg:px-10 lg:pt-8">
+    <main className="min-h-screen bg-gray-50 px-6 py-8 pt-20 lg:ml-64 lg:px-10 lg:pt-8">
       <div className="mx-auto max-w-4xl">
         <button
           type="button"

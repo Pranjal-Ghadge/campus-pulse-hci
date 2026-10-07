@@ -60,11 +60,11 @@ function SettingsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-8 pt-20 lg:ml-72 lg:px-10 lg:pt-8">
+    <main className="min-h-screen bg-gray-50 px-6 py-8 pt-20 lg:ml-64 lg:px-10 lg:pt-8">
       <div className="mx-auto max-w-4xl">
         <header className="mb-8">
           <p className="mb-2 text-sm font-medium text-sky-600">Your Account</p>
-          <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
           <p className="mt-2 text-slate-500">Choose how Campus Pulse keeps you informed and protects your privacy.</p>
         </header>
 

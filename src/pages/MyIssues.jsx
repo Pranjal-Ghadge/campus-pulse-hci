@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Tag, Users, Check, Search as SearchIcon, AlertTriangle } from "lucide-react";
+import { MapPin, Tag, Users, Check, Search as SearchIcon, AlertTriangle, Plus } from "lucide-react";
 import { apiRequest } from "../utils/api";
 
 function MyIssues() {
@@ -80,7 +80,7 @@ function MyIssues() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-72">
+    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-64">
       <div className="mx-auto max-w-6xl">
 
         {/* Header */}
@@ -91,7 +91,7 @@ function MyIssues() {
               Your Activity
             </p>
 
-            <h1 className="text-3xl font-bold text-slate-900">
+            <h1 className="text-2xl font-semibold text-slate-900">
               My Issues
             </h1>
 
@@ -103,9 +103,10 @@ function MyIssues() {
           <button
             type="button"
             onClick={() => navigate("/report")}
-            className="rounded-xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600"
+            className="inline-flex items-center rounded-lg bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
           >
-            + Raise an Issue
+            <Plus size={16} className="mr-2" />
+            Raise an Issue
           </button>
 
         </div>

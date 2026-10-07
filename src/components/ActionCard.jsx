@@ -1,26 +1,23 @@
 import React from 'react';
 import * as LucideIcons from 'lucide-react';
-import Card from './Card';
 
 const ActionCard = ({ category, onClick }) => {
   const Icon = LucideIcons[category.icon];
   
   return (
-    <Card 
-      hover 
-      className="p-6 cursor-pointer group"
+    <button
+      type="button"
       onClick={onClick}
+      className="flex w-full items-start gap-4 rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-primary-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
     >
-      <div className="flex flex-col items-center text-center space-y-3">
-        <div className="w-16 h-16 rounded-full bg-primary-50 flex items-center justify-center group-hover:bg-primary-100 transition-colors duration-200">
-          <Icon size={32} className="text-primary-600" />
-        </div>
-        <div>
-          <h3 className="font-semibold text-gray-900 mb-1">{category.label}</h3>
-          <p className="text-sm text-gray-600">{category.description}</p>
-        </div>
-      </div>
-    </Card>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
+        <Icon size={20} aria-hidden="true" />
+      </span>
+      <span>
+        <span className="block font-semibold text-gray-900">{category.label}</span>
+        <span className="mt-1 block text-sm leading-5 text-gray-600">{category.description}</span>
+      </span>
+    </button>
   );
 };
 

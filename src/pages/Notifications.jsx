@@ -269,7 +269,7 @@ function Notifications() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-72">
+    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-64">
       <div className="mx-auto max-w-5xl">
 
         {/* Header */}
@@ -280,7 +280,7 @@ function Notifications() {
               Stay Updated
             </p>
 
-            <h1 className="text-3xl font-bold text-slate-900">
+            <h1 className="text-2xl font-semibold text-slate-900">
               Notifications
             </h1>
 
