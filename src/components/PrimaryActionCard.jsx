@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertTriangle } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import Button from './Button';
 
@@ -12,7 +13,7 @@ const PrimaryActionCard = ({ category, onClick }) => {
           <Icon size={32} className="text-white" />
         </div>
         <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-          <span className="text-lg">🚨</span>
+          <AlertTriangle size={20} className="text-white" />
         </div>
       </div>
       

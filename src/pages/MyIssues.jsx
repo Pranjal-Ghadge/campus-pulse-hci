@@ -1,77 +1,49 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { MapPin, Tag, Users, Check, Search as SearchIcon, AlertTriangle } from "lucide-react";
+import { apiRequest } from "../utils/api";
 
 function MyIssues() {
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const [issues, setIssues] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadCount, setReloadCount] = useState(0);
 
-  const issues = [
-    {
-      id: "CP-1024",
-      title: "Library Wi-Fi Connectivity Problem",
-      category: "Infrastructure",
-      location: "Library",
-      status: "In Progress",
-      statusText: "Being investigated",
-      affected: 127,
-      updated: "2 hours ago",
-      date: "Sep 30, 2026",
-      icon: "📶",
-    },
-    {
-      id: "CP-1018",
-      title: "AC not working in Room 204",
-      category: "Infrastructure",
-      location: "Main Building · Room 204",
-      status: "Resolved",
-      statusText: "Resolution verified",
-      affected: 34,
-      updated: "Yesterday",
-      date: "Sep 28, 2026",
-      icon: "❄",
-    },
-    {
-      id: "CP-1009",
-      title: "Water dispenser needs maintenance",
-      category: "Facilities",
-      location: "Block B",
-      status: "Waiting for You",
-      statusText: "Verification required",
-      affected: 18,
-      updated: "Sep 27, 2026",
-      date: "Sep 25, 2026",
-      icon: "💧",
-    },
-    {
-      id: "CP-0997",
-      title: "More charging points in library",
-      category: "Suggestion",
-      location: "Library",
-      status: "Resolved",
-      statusText: "Implemented",
-      affected: 86,
-      updated: "Sep 24, 2026",
-      date: "Sep 20, 2026",
-      icon: "🔌",
-    },
-    {
-      id: "CP-0988",
-      title: "Canteen seating area needs cleaning",
-      category: "Cleanliness",
-      location: "Canteen",
-      status: "In Progress",
-      statusText: "Assigned to housekeeping",
-      affected: 42,
-      updated: "Sep 22, 2026",
-      date: "Sep 21, 2026",
-      icon: "🧹",
-    },
-  ];
+  useEffect(() => {
+    let isCurrent = true;
+    setIsLoading(true);
+    setLoadError("");
+
+    apiRequest("/api/issues")
+      .then(({ issues: loadedIssues }) => {
+        if (isCurrent) {
+          setIssues(loadedIssues.map((issue) => ({ ...issue, icon: AlertTriangle })));
+        }
+      })
+      .catch((error) => {
+        if (isCurrent) setLoadError(error.message || "Unable to load your issues. Please try again.");
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [reloadCount]);
 
   const filters = [
     { label: "All", count: issues.length },
     {
       label: "In Progress",
       count: issues.filter((i) => i.status === "In Progress").length,
+    },
+    {
+      label: "Under Review",
+      count: issues.filter((i) => i.status === "Under Review").length,
     },
     {
       label: "Resolved",
@@ -108,7 +80,7 @@ function MyIssues() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10">
+    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-72">
       <div className="mx-auto max-w-6xl">
 
         {/* Header */}
@@ -130,6 +102,7 @@ function MyIssues() {
 
           <button
             type="button"
+            onClick={() => navigate("/report")}
             className="rounded-xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600"
           >
             + Raise an Issue
@@ -142,22 +115,28 @@ function MyIssues() {
 
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <p className="text-sm text-gray-500">Total Issues</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">5</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{issues.length}</p>
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <p className="text-sm text-gray-500">In Progress</p>
-            <p className="mt-1 text-2xl font-bold text-sky-600">2</p>
+            <p className="mt-1 text-2xl font-bold text-sky-600">
+              {issues.filter((issue) => issue.status === "In Progress").length}
+            </p>
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <p className="text-sm text-gray-500">Resolved</p>
-            <p className="mt-1 text-2xl font-bold text-emerald-600">2</p>
+            <p className="mt-1 text-2xl font-bold text-emerald-600">
+              {issues.filter((issue) => issue.status === "Resolved").length}
+            </p>
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <p className="text-sm text-gray-500">Supported</p>
-            <p className="mt-1 text-2xl font-bold text-violet-600">7</p>
+            <p className="mt-1 text-2xl font-bold text-violet-600">
+              {issues.filter((issue) => issue.supportedByCurrentUser).length}
+            </p>
           </div>
 
         </div>
@@ -169,7 +148,7 @@ function MyIssues() {
             <div className="relative">
 
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                🔍
+                <SearchIcon size={18} />
               </span>
 
               <input
@@ -214,6 +193,22 @@ function MyIssues() {
         </div>
 
         {/* Issue List */}
+        {isLoading ? (
+          <div role="status" className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-slate-500">
+            Loading your issues...
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+            <p className="text-sm font-medium text-red-800">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => setReloadCount((count) => count + 1)}
+              className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-gray-200 hover:bg-gray-50"
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
         <div className="space-y-4">
 
           {filteredIssues.map((issue) => (
@@ -226,8 +221,8 @@ function MyIssues() {
               {/* Top */}
               <div className="flex items-start gap-4">
 
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-xl">
-                  {issue.icon}
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                  <issue.icon size={20} />
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -257,16 +252,19 @@ function MyIssues() {
                   {/* Metadata */}
                   <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-500">
 
-                    <span>
-                      📍 {issue.location}
+                    <span className="flex items-center gap-1.5">
+                      <MapPin size={14} className="text-gray-400" />
+                      {issue.location}
                     </span>
 
-                    <span>
-                      🏷 {issue.category}
+                    <span className="flex items-center gap-1.5">
+                      <Tag size={14} className="text-gray-400" />
+                      {issue.category}
                     </span>
 
-                    <span>
-                      👥 {issue.affected} affected
+                    <span className="flex items-center gap-1.5">
+                      <Users size={14} className="text-gray-400" />
+                      {issue.affected} affected
                     </span>
 
                   </div>
@@ -296,7 +294,7 @@ function MyIssues() {
                   <div className="flex items-center">
 
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-xs text-white">
-                      ✓
+                      <Check size={12} />
                     </div>
 
                     <span className="ml-2 hidden text-xs font-medium text-slate-600 sm:block">
@@ -307,6 +305,8 @@ function MyIssues() {
 
                   <div
                     className={`mx-2 h-0.5 flex-1 ${
+                      issue.status === "Under Review" ||
+                      issue.status === "Assigned" ||
                       issue.status === "In Progress" ||
                       issue.status === "Resolved"
                         ? "bg-sky-400"
@@ -319,15 +319,19 @@ function MyIssues() {
 
                     <div
                       className={`flex h-7 w-7 items-center justify-center rounded-full text-xs ${
+                        issue.status === "Under Review" ||
+                        issue.status === "Assigned" ||
                         issue.status === "In Progress" ||
                         issue.status === "Resolved"
                           ? "bg-sky-500 text-white"
                           : "border-2 border-gray-200 bg-white text-gray-400"
                       }`}
                     >
-                      {issue.status === "In Progress" ||
+                      {issue.status === "Under Review" ||
+                      issue.status === "Assigned" ||
+                      issue.status === "In Progress" ||
                       issue.status === "Resolved"
-                        ? "✓"
+                        ? <Check size={12} />
                         : "2"}
                     </div>
 
@@ -355,7 +359,7 @@ function MyIssues() {
                           : "border-2 border-gray-200 bg-white text-gray-400"
                       }`}
                     >
-                      {issue.status === "Resolved" ? "✓" : "3"}
+                      {issue.status === "Resolved" ? <Check size={12} /> : "3"}
                     </div>
 
                     <span className="ml-2 hidden text-xs font-medium text-slate-600 sm:block">
@@ -377,6 +381,12 @@ function MyIssues() {
 
                 <button
                   type="button"
+                  onClick={() => {
+                    const { icon, ...issueDetails } = issue;
+                    navigate(`/issues/${encodeURIComponent(issue.databaseId || issue.id)}`, {
+                      state: { issue: issueDetails },
+                    });
+                  }}
                   className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:text-sky-600 sm:w-auto"
                 >
                   View Issue →
@@ -392,8 +402,8 @@ function MyIssues() {
           {filteredIssues.length === 0 && (
             <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
 
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-50 text-2xl">
-                🔎
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+                <SearchIcon size={28} />
               </div>
 
               <h2 className="font-semibold text-slate-900">
@@ -408,6 +418,7 @@ function MyIssues() {
           )}
 
         </div>
+        )}
 
       </div>
     </div>

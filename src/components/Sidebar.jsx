@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { Home, PlusCircle, FileText, Compass, Bell, HelpCircle, Settings, User, Menu, X, ChevronRight } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Avatar from './Avatar';
+import { useStudent } from '../context/StudentContext';
 
 const Sidebar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { profile } = useStudent();
+  const studentName = profile.name || 'Student';
 
   const mainNavItems = [
     { path: '/', icon: Home, label: 'Home' },
@@ -99,10 +102,10 @@ const Sidebar = () => {
           {/* User Profile */}
           <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200">
             <div className="flex items-center gap-3">
-              <Avatar alt="Student" size="md" />
+              <Avatar alt={studentName} size="md" />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">Student</p>
-                <p className="text-sm text-gray-500 truncate">student@campus.edu</p>
+                <p className="font-semibold text-gray-900 truncate">{studentName}</p>
+                <p className="text-sm text-gray-500 truncate">{profile.email}</p>
               </div>
             </div>
           </div>
@@ -127,7 +130,7 @@ const Sidebar = () => {
             <span className="font-bold text-gray-900">Campus Pulse</span>
           </Link>
           
-          <Avatar alt="Student" size="sm" />
+          <Avatar alt={studentName} size="sm" />
         </div>
       </header>
 
@@ -177,10 +180,10 @@ const Sidebar = () => {
           <div className="pt-6 border-t border-gray-100">
             <div className="p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200">
               <div className="flex items-center gap-3">
-                <Avatar alt="Student" size="md" />
+                <Avatar alt={studentName} size="md" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">Student</p>
-                  <p className="text-sm text-gray-500 truncate">student@campus.edu</p>
+                  <p className="font-semibold text-gray-900 truncate">{studentName}</p>
+                  <p className="text-sm text-gray-500 truncate">{profile.email}</p>
                 </div>
               </div>
             </div>

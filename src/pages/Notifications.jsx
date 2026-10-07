@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { FileText, Users, Check, Lightbulb, Bell, CheckCircle } from "lucide-react";
 
 function Notifications() {
   const [activeFilter, setActiveFilter] = useState("All");
@@ -14,7 +15,7 @@ function Notifications() {
       group: "Today",
       unread: true,
       issueId: "CP-1024",
-      icon: "📋",
+      icon: FileText,
     },
     {
       id: 2,
@@ -26,7 +27,7 @@ function Notifications() {
       group: "Today",
       unread: true,
       issueId: "CP-1024",
-      icon: "👥",
+      icon: Users,
     },
     {
       id: 3,
@@ -38,7 +39,7 @@ function Notifications() {
       group: "Today",
       unread: true,
       issueId: "CP-1018",
-      icon: "✓",
+      icon: Check,
       action: true,
     },
     {
@@ -51,7 +52,7 @@ function Notifications() {
       group: "Earlier",
       unread: false,
       issueId: "CP-0997",
-      icon: "💡",
+      icon: Lightbulb,
     },
     {
       id: 5,
@@ -63,7 +64,7 @@ function Notifications() {
       group: "Earlier",
       unread: false,
       issueId: "CP-1009",
-      icon: "🔔",
+      icon: Bell,
     },
     {
       id: 6,
@@ -75,7 +76,7 @@ function Notifications() {
       group: "Earlier",
       unread: false,
       issueId: "CP-1018",
-      icon: "🎉",
+      icon: CheckCircle,
     },
   ]);
 
@@ -145,7 +146,16 @@ function Notifications() {
   const renderNotification = (notification) => (
     <div
       key={notification.id}
+      role="group"
+      tabIndex={0}
+      aria-label={`${notification.unread ? "Unread" : "Read"} notification: ${notification.title}`}
       onClick={() => markAsRead(notification.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          markAsRead(notification.id);
+        }
+      }}
       className={`group relative rounded-2xl border p-5 transition ${
         notification.unread
           ? "border-sky-100 bg-sky-50/50"
@@ -156,11 +166,11 @@ function Notifications() {
 
         {/* Icon */}
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg ${getIconStyle(
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${getIconStyle(
             notification.type
           )}`}
         >
-          {notification.icon}
+          <notification.icon size={20} />
         </div>
 
         {/* Content */}
@@ -182,13 +192,16 @@ function Notifications() {
                 </h3>
 
                 {notification.unread && (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-sky-500" />
+                  <span role="img" aria-label="Unread" className="h-2 w-2 shrink-0 rounded-full bg-sky-500" />
                 )}
 
               </div>
 
               <p className="mt-1 text-xs text-gray-400">
                 Issue #{notification.issueId}
+              </p>
+              <p className="mt-1 text-xs font-medium text-slate-500">
+                {notification.unread ? "Unread" : "Read"}
               </p>
             </div>
 
@@ -256,7 +269,7 @@ function Notifications() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10">
+    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-72">
       <div className="mx-auto max-w-5xl">
 
         {/* Header */}
@@ -293,12 +306,12 @@ function Notifications() {
 
           <div className="flex items-center gap-4">
 
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl shadow-sm">
-              🔔
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-sky-600 shadow-sm">
+              <Bell size={20} />
             </div>
 
             <div>
-              <p className="font-semibold text-slate-800">
+              <p aria-live="polite" className="font-semibold text-slate-800">
                 {unreadCount === 0
                   ? "You're all caught up!"
                   : `${unreadCount} unread notification${
@@ -332,6 +345,7 @@ function Notifications() {
             <button
               key={filter}
               type="button"
+              aria-pressed={activeFilter === filter}
               onClick={() => setActiveFilter(filter)}
               className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
                 activeFilter === filter
@@ -399,8 +413,8 @@ function Notifications() {
         {filteredNotifications.length === 0 && (
           <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
 
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-50 text-2xl">
-              🔔
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+              <Bell size={28} />
             </div>
 
             <h2 className="font-semibold text-slate-900">

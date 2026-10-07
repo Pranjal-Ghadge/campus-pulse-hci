@@ -1,10 +1,9 @@
 import React, { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Wifi, Plug, Droplets, Brush, Snowflake, Lightbulb, Search as SearchIcon, MapPin, Tag, MessageCircle, Check, TrendingUp, Users } from "lucide-react";
+import Modal from "../components/Modal";
 
 function Explore() {
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [search, setSearch] = useState("");
-  const [supportedIssues, setSupportedIssues] = useState([]);
-
   const categories = [
     "All",
     "Infrastructure",
@@ -14,6 +13,16 @@ function Explore() {
     "Safety",
     "Suggestions",
   ];
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeCategory, setActiveCategory] = useState(() =>
+    categories.includes(location.state?.category) ? location.state.category : "All"
+  );
+  const [search, setSearch] = useState("");
+  const [supportedIssues, setSupportedIssues] = useState([]);
+  const [sortBy, setSortBy] = useState("Most Supported");
+  const [selectedIssue, setSelectedIssue] = useState(null);
 
   const issues = [
     {
@@ -27,7 +36,7 @@ function Explore() {
       supporters: 127,
       comments: 18,
       updated: "2 hours ago",
-      icon: "📶",
+      icon: Wifi,
       trending: true,
     },
     {
@@ -41,7 +50,7 @@ function Explore() {
       supporters: 86,
       comments: 12,
       updated: "4 hours ago",
-      icon: "🔌",
+      icon: Plug,
       trending: true,
     },
     {
@@ -55,7 +64,7 @@ function Explore() {
       supporters: 54,
       comments: 7,
       updated: "Yesterday",
-      icon: "💧",
+      icon: Droplets,
       trending: false,
     },
     {
@@ -69,7 +78,7 @@ function Explore() {
       supporters: 42,
       comments: 5,
       updated: "Yesterday",
-      icon: "🧹",
+      icon: Brush,
       trending: false,
     },
     {
@@ -83,7 +92,7 @@ function Explore() {
       supporters: 34,
       comments: 9,
       updated: "2 days ago",
-      icon: "❄",
+      icon: Snowflake,
       trending: false,
     },
     {
@@ -97,7 +106,7 @@ function Explore() {
       supporters: 29,
       comments: 6,
       updated: "3 days ago",
-      icon: "💡",
+      icon: Lightbulb,
       trending: false,
     },
   ];
@@ -122,6 +131,12 @@ function Explore() {
     return matchesCategory && matchesSearch;
   });
 
+  const sortedIssues = [...filteredIssues].sort((first, second) =>
+    sortBy === "Most Supported"
+      ? second.supporters - first.supporters
+      : issues.indexOf(first) - issues.indexOf(second)
+  );
+
   const getStatusStyle = (status) => {
     if (status === "Resolved") {
       return "bg-emerald-50 text-emerald-700 border-emerald-100";
@@ -135,7 +150,7 @@ function Explore() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10">
+    <div className="min-h-screen bg-gray-50 px-6 py-8 lg:px-10 pt-20 lg:pt-8 lg:ml-72">
       <div className="mx-auto max-w-6xl">
 
         {/* Header */}
@@ -157,6 +172,7 @@ function Explore() {
 
           <button
             type="button"
+            onClick={() => navigate("/report")}
             className="rounded-xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-600"
           >
             + Raise an Issue
@@ -198,7 +214,7 @@ function Explore() {
           <div className="relative">
 
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-              🔍
+              <SearchIcon size={18} />
             </span>
 
             <input
@@ -246,8 +262,13 @@ function Explore() {
             </p>
           </div>
 
-          <button className="hidden text-sm font-medium text-sky-600 sm:block">
-            Sort: Most Supported ▾
+          <button
+            type="button"
+            aria-label={`Sort issues: ${sortBy}. Activate to change sort order.`}
+            onClick={() => setSortBy((current) => current === "Most Supported" ? "Recently Updated" : "Most Supported")}
+            className="hidden text-sm font-medium text-sky-600 sm:block"
+          >
+            Sort: {sortBy} ▾
           </button>
 
         </div>
@@ -255,7 +276,7 @@ function Explore() {
         {/* Issue Cards */}
         <div className="grid gap-5 lg:grid-cols-2">
 
-          {filteredIssues.map((issue) => {
+          {sortedIssues.map((issue) => {
 
             const isSupported = supportedIssues.includes(issue.id);
 
@@ -268,8 +289,8 @@ function Explore() {
                 {/* Top row */}
                 <div className="flex items-start gap-4">
 
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-xl">
-                    {issue.icon}
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                    <issue.icon size={20} />
                   </div>
 
                   <div className="min-w-0 flex-1">
@@ -277,8 +298,9 @@ function Explore() {
                     <div className="flex flex-wrap items-center gap-2">
 
                       {issue.trending && (
-                        <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-600">
-                          🔥 Trending
+                        <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-600">
+                          <TrendingUp size={12} />
+                          Trending
                         </span>
                       )}
 
@@ -312,12 +334,14 @@ function Explore() {
                 {/* Location */}
                 <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-500">
 
-                  <span>
-                    📍 {issue.location}
+                  <span className="flex items-center gap-1.5">
+                    <MapPin size={14} className="text-gray-400" />
+                    {issue.location}
                   </span>
 
-                  <span>
-                    🏷 {issue.category}
+                  <span className="flex items-center gap-1.5">
+                    <Tag size={14} className="text-gray-400" />
+                    {issue.category}
                   </span>
 
                 </div>
@@ -329,7 +353,7 @@ function Explore() {
 
                     <div>
                       <p className="text-lg font-bold text-slate-900">
-                        {issue.supporters}
+                        {issue.supporters + (isSupported ? 1 : 0)}
                       </p>
 
                       <p className="text-xs text-gray-500">
@@ -339,14 +363,16 @@ function Explore() {
 
                     <button
                       type="button"
+                      aria-pressed={isSupported}
                       onClick={() => toggleSupport(issue.id)}
-                      className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
                         isSupported
                           ? "bg-sky-500 text-white"
                           : "border border-sky-200 bg-white text-sky-600 hover:bg-sky-50"
                       }`}
                     >
-                      {isSupported ? "✓ I'm affected" : "I'm also affected"}
+                      {isSupported && <Check size={14} />}
+                      {isSupported ? "I'm affected" : "I'm also affected"}
                     </button>
 
                   </div>
@@ -358,8 +384,9 @@ function Explore() {
 
                   <div className="flex gap-4 text-xs text-gray-400">
 
-                    <span>
-                      💬 {issue.comments} comments
+                    <span className="flex items-center gap-1.5">
+                      <MessageCircle size={14} />
+                      {issue.comments} comments
                     </span>
 
                     <span>
@@ -370,6 +397,7 @@ function Explore() {
 
                   <button
                     type="button"
+                    onClick={() => setSelectedIssue(issue)}
                     className="text-sm font-semibold text-sky-600 hover:text-sky-700"
                   >
                     View Issue →
@@ -387,8 +415,8 @@ function Explore() {
         {filteredIssues.length === 0 && (
           <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
 
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-50 text-2xl">
-              🔎
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+              <SearchIcon size={28} />
             </div>
 
             <h2 className="font-semibold text-slate-900">
@@ -415,12 +443,34 @@ function Explore() {
 
           <button
             type="button"
+            onClick={() => navigate("/report")}
             className="mt-4 rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-600"
           >
             Raise a New Issue
           </button>
 
         </div>
+
+        <Modal
+          isOpen={Boolean(selectedIssue)}
+          onClose={() => setSelectedIssue(null)}
+          title={selectedIssue?.title || "Issue details"}
+          size="md"
+        >
+          {selectedIssue && (
+            <div>
+              <div className="mb-4 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+                <span className="rounded-full bg-sky-50 px-3 py-1 text-sky-700">{selectedIssue.status}</span>
+                <span className="rounded-full bg-gray-100 px-3 py-1">{selectedIssue.category}</span>
+              </div>
+              <p className="text-sm leading-6 text-slate-600">{selectedIssue.description}</p>
+              <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-500">
+                <span className="flex items-center gap-1.5"><MapPin size={14} />{selectedIssue.location}</span>
+                <span className="flex items-center gap-1.5"><Users size={14} />{selectedIssue.supporters} supporting</span>
+              </div>
+            </div>
+          )}
+        </Modal>
 
       </div>
     </div>

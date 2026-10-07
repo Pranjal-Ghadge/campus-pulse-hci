@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, TrendingUp, CheckCircle, Users, Building2, ArrowRight, Activity } from 'lucide-react';
 import Avatar from '../components/Avatar';
 import PrimaryActionCard from '../components/PrimaryActionCard';
@@ -6,15 +7,20 @@ import SecondaryActionCard from '../components/SecondaryActionCard';
 import IssueCard from '../components/IssueCard';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import { useStudent } from '../context/StudentContext';
 import { issueCategories, mockIssues, campusInfo, campusImpact } from '../data/mockIssues';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const { profile } = useStudent();
+  const studentName = profile.name || 'Student';
+
   const handleActionClick = (category) => {
-    console.log('Action clicked:', category.id);
+    navigate('/report', { state: { issueType: category.id } });
   };
 
   const handleIssueClick = (issue) => {
-    console.log('Issue clicked:', issue.id);
+    navigate('/explore', { state: { category: issue.category } });
   };
 
   const myIssues = mockIssues.filter(issue => 
@@ -51,18 +57,18 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-                  {getGreeting()}, Student 👋
+                  {getGreeting()}, {studentName}
                 </h1>
                 <p className="text-lg text-gray-600">
                   Make your campus better, one voice at a time.
                 </p>
               </div>
               <div className="flex items-center gap-4 ml-4">
-                <button className="relative p-3 rounded-xl hover:bg-gray-100 transition-colors">
+                <button type="button" aria-label="Open notifications" onClick={() => navigate('/notifications')} className="relative p-3 rounded-xl hover:bg-gray-100 transition-colors">
                   <Bell size={24} className="text-gray-700" />
                   <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
                 </button>
-                <Avatar alt="Student" size="md" />
+                <Avatar alt={studentName} size="md" />
               </div>
             </div>
           </div>
@@ -80,7 +86,7 @@ const Dashboard = () => {
                     <Button variant="secondary" onClick={() => handleActionClick(primaryCategory)}>
                       Raise an Issue
                     </Button>
-                    <Button variant="ghost" className="text-white hover:bg-white/20 border border-white/30">
+                    <Button variant="ghost" onClick={() => navigate('/explore')} className="text-white hover:bg-white/20 border border-white/30">
                       Explore Campus Issues
                     </Button>
                   </div>
@@ -156,7 +162,7 @@ const Dashboard = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">What's happening on campus</h2>
                 <p className="text-gray-600">Trending issues and campus updates</p>
               </div>
-              <Button variant="ghost" className="text-primary-600 hover:text-primary-700">
+              <Button variant="ghost" onClick={() => navigate('/explore')} className="text-primary-600 hover:text-primary-700">
                 View all <ArrowRight size={16} className="ml-1" />
               </Button>
             </div>
@@ -266,7 +272,7 @@ const Dashboard = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Recent Issues</h2>
                 <p className="text-gray-600">Latest reports from the campus community</p>
               </div>
-              <Button variant="ghost" className="text-primary-600 hover:text-primary-700">
+              <Button variant="ghost" onClick={() => navigate('/explore')} className="text-primary-600 hover:text-primary-700">
                 View all <ArrowRight size={16} className="ml-1" />
               </Button>
             </div>

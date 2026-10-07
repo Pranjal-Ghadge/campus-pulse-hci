@@ -1,13 +1,15 @@
-import React from 'react';
-import { MapPin, Users, Calendar, Heart } from 'lucide-react';
+import React, { useState } from 'react';
+import { MapPin, Users, Calendar, Heart, Check } from 'lucide-react';
 import Card from './Card';
 import StatusBadge from './StatusBadge';
 import Button from './Button';
 
 const IssueCard = ({ issue, onClick, showSupportButton = false }) => {
+  const [isSupported, setIsSupported] = useState(false);
+
   const handleSupport = (e) => {
     e.stopPropagation();
-    console.log('Support issue:', issue.id);
+    setIsSupported((current) => !current);
   };
 
   return (
@@ -34,7 +36,7 @@ const IssueCard = ({ issue, onClick, showSupportButton = false }) => {
       <div className="flex items-center justify-between pt-4 border-t border-gray-100">
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <Users size={16} className="flex-shrink-0 text-gray-400" />
-          <span className="font-medium">{issue.supporters} students affected</span>
+          <span className="font-medium">{issue.supporters + (isSupported ? 1 : 0)} students affected</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -45,11 +47,12 @@ const IssueCard = ({ issue, onClick, showSupportButton = false }) => {
             <Button 
               variant="ghost" 
               size="sm"
+              aria-pressed={isSupported}
               onClick={handleSupport}
               className="text-primary-600 hover:text-primary-700 hover:bg-primary-50"
             >
-              <Heart size={16} className="mr-1" />
-              Support
+              {isSupported ? <Check size={16} className="mr-1" /> : <Heart size={16} className="mr-1" />}
+              {isSupported ? 'Supported' : 'Support'}
             </Button>
           )}
         </div>

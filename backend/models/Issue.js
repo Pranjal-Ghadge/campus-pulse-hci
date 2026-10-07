@@ -2,6 +2,13 @@ const mongoose = require("mongoose");
 
 const issueSchema = new mongoose.Schema(
   {
+    trackingId: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
+    },
+
     title: {
       type: String,
       required: true,
