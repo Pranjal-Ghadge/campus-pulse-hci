@@ -14,6 +14,8 @@ import Profile from './pages/Profile';
 import SettingsPage from './pages/Settings';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import StaffDashboard from './pages/StaffDashboard';
+import StaffIssueDetails from './pages/StaffIssueDetails';
 import { StudentProvider, useStudent } from './context/StudentContext';
 
 function LoadingScreen({ message = 'Checking your session...' }) {
@@ -24,6 +26,18 @@ function LoadingScreen({ message = 'Checking your session...' }) {
       </p>
     </main>
   );
+}
+
+function RequireRole({ role }) {
+  const { profile } = useStudent();
+  const effectiveRole = ["staff", "admin"].includes(profile?.role)
+    ? profile.role
+    : "student";
+  const allowed = role === "staff"
+    ? ["staff", "admin"].includes(effectiveRole)
+    : effectiveRole === "student";
+  if (allowed) return <Outlet />;
+  return <Navigate to={["staff", "admin"].includes(effectiveRole) ? "/staff" : "/dashboard"} replace />;
 }
 
 function RequireAuth() {
@@ -95,7 +109,11 @@ function PublicOnly({ children }) {
   const { profile, isAuthLoading } = useStudent();
   const location = useLocation();
   if (isAuthLoading) return <LoadingScreen />;
-  if (profile) return <Navigate to={location.state?.from?.pathname || "/"} replace />;
+  if (profile) {
+    const isStaff = ["staff", "admin"].includes(profile.role);
+    const defaultPath = isStaff ? "/staff" : "/dashboard";
+    return <Navigate to={!isStaff ? location.state?.from?.pathname || defaultPath : defaultPath} replace />;
+  }
   return children;
 }
 
@@ -105,16 +123,23 @@ function AppRoutes() {
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/signup" element={<PublicOnly><Signup /></PublicOnly>} />
       <Route element={<RequireAuth />}>
-        <Route element={<AuthenticatedLayout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/my-issues" element={<MyIssues />} />
-          <Route path="/issues/:id" element={<IssueDetails />} />
-          <Route path="/explore" element={<Explore />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/settings" element={<SettingsPage />} />
+        <Route element={<RequireRole role="student" />}>
+          <Route element={<AuthenticatedLayout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/report" element={<Report />} />
+            <Route path="/my-issues" element={<MyIssues />} />
+            <Route path="/issues/:id" element={<IssueDetails />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
+        </Route>
+        <Route element={<RequireRole role="staff" />}>
+          <Route path="/staff" element={<StaffDashboard />} />
+          <Route path="/staff/issues/:id" element={<StaffIssueDetails />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

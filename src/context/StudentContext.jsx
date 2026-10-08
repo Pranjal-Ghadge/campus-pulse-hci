@@ -81,13 +81,29 @@ export function StudentProvider({ children }) {
   const login = async (credentials) => {
     const { token, user } = await apiRequest("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify(credentials),
+      body: JSON.stringify({
+        email: credentials.email,
+        password: credentials.password,
+      }),
     });
+    const effectiveRole = user.role || "student";
+    const expectedRole = credentials.role;
+    if (
+      expectedRole &&
+      (expectedRole === "staff" ? !["staff", "admin"].includes(effectiveRole) : effectiveRole !== "student")
+    ) {
+      const actualRole = effectiveRole === "staff" || effectiveRole === "admin"
+        ? "Staff"
+        : "Student";
+      const expectedLogin = actualRole === "Staff" ? "Staff / Resolver" : "Student";
+      throw new Error(`This account is registered as a ${actualRole} account. Please select ${expectedLogin} Login.`);
+    }
     localStorage.setItem("campusPulseToken", token);
-    setProfile(user);
+    const profile = { ...user, role: effectiveRole };
+    setProfile(profile);
     setAuthError("");
     setAuthFeedback(`Welcome back, ${user.name.split(/\s+/)[0] || user.name}.`);
-    return user;
+    return profile;
   };
 
   const signup = (details) => apiRequest("/api/auth/signup", {

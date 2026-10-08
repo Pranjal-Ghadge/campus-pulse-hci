@@ -1,4 +1,7 @@
-const apiBaseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+export const apiBaseUrl = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? "http://localhost:5000" : "")
+).replace(/\/$/, "");
 
 export async function apiRequest(path, options = {}) {
   const token = localStorage.getItem("campusPulseToken");
@@ -39,6 +42,7 @@ export async function apiRequest(path, options = {}) {
       payload?.message || responseMessage || "The request could not be completed."
     );
     error.status = response.status;
+    error.responseBody = payload ?? responseText;
     throw error;
   }
 

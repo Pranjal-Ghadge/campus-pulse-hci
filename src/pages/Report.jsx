@@ -4,7 +4,7 @@ import { AlertTriangle, ArrowLeft, Lightbulb, Shield, HelpCircle, Camera, Check,
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { useStudent } from "../context/StudentContext";
-import { apiRequest } from "../utils/api";
+import { apiBaseUrl } from "../utils/api";
 
 function Report() {
   const navigate = useNavigate();
@@ -101,25 +101,48 @@ function Report() {
     setSubmitError("");
 
     try {
-      const { issue } = await apiRequest("/api/issues", {
+      const token = localStorage.getItem("campusPulseToken") || localStorage.getItem("token");
+      const response = await fetch(`${apiBaseUrl}/api/issues`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           title: description.trim().slice(0, 50),
           description: description.trim(),
           type: issueType,
           category: issueType.charAt(0).toUpperCase() + issueType.slice(1),
+          subcategory: null,
           location,
           specificLocation: specificPlace,
           isAnonymous: anonymous,
         }),
       });
+      const responseBody = await response.json();
+      console.info("POST /api/issues response:", {
+        status: response.status,
+        body: responseBody,
+      });
+      if (!response.ok) {
+        const error = new Error(
+          responseBody?.message || `Issue submission failed with status ${response.status}.`
+        );
+        error.status = response.status;
+        error.responseBody = responseBody;
+        throw error;
+      }
 
-      setSubmittedIssueId(issue.trackingId || issue.id);
+      const issue = responseBody?.issue;
+      setSubmittedIssueId(issue?.trackingId || issue?.id || issue?._id || "");
       setShowSuccessModal(true);
     } catch (error) {
-      console.error("Error submitting issue:", error);
+      console.error("Issue submission failed:", {
+        status: error.status ?? null,
+        body: error.responseBody ?? error.message,
+      });
       setSubmitError(
-        import.meta.env.DEV && error instanceof Error && error.message
+        error instanceof Error && error.message
           ? error.message
           : "Please try again."
       );

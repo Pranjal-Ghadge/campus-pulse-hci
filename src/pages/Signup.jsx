@@ -7,7 +7,13 @@ import { useStudent } from "../context/StudentContext";
 function Signup() {
   const { signup } = useStudent();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [role, setRole] = useState("student");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
@@ -46,6 +52,7 @@ function Signup() {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
+        role,
       });
       setSuccess("Account created successfully. Please log in.");
       setIsSubmitting(false);
@@ -128,6 +135,37 @@ function Signup() {
         </label>
         {passwordInput("password", "Password", showPassword, () => setShowPassword((shown) => !shown), "new-password")}
         {passwordInput("confirmPassword", "Confirm password", showConfirmPassword, () => setShowConfirmPassword((shown) => !shown), "new-password")}
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-gray-700">Account type</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: "student", label: "Student" },
+              { value: "staff", label: "Staff / Resolver" },
+            ].map((option) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm ${
+                  role === option.value
+                    ? "border-primary-700 bg-blue-50 text-primary-800"
+                    : "border-gray-300 bg-white text-gray-700"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value={option.value}
+                  checked={role === option.value}
+                  onChange={() => {
+                    setRole(option.value);
+                    setError("");
+                  }}
+                  className="accent-primary-700"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <p className="text-xs text-gray-500">Use at least 8 characters for your password.</p>
         {(error || success) && (
           <p role={error ? "alert" : "status"} className={`rounded-lg border px-3 py-2.5 text-sm ${error ? "border-red-200 bg-red-50 text-red-800" : "border-green-200 bg-green-50 text-green-800"}`}>

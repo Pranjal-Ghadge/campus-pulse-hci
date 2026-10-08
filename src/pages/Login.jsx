@@ -10,6 +10,7 @@ function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginRole, setLoginRole] = useState("student");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,10 +22,11 @@ function Login() {
     setIsSubmitting(true);
     setError("");
     try {
-      await login({ email: email.trim(), password });
-      navigate(location.state?.from?.pathname || "/", { replace: true });
+      const user = await login({ email: email.trim(), password, role: loginRole });
+      navigate(location.state?.from?.pathname || (user.role === "staff" || user.role === "admin" ? "/staff" : "/dashboard"), { replace: true });
     } catch (requestError) {
       setError(requestError.message || "Unable to log in. Please try again.");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -37,6 +39,30 @@ function Login() {
       footer={<>New to Campus Pulse? <Link to="/signup" className="font-semibold text-primary-700 hover:text-primary-800">Create an account</Link></>}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <fieldset className="grid grid-cols-2 gap-2">
+          <legend className="mb-1.5 text-sm font-medium text-gray-700">Login as</legend>
+          {[
+            { value: "student", label: "Student Login" },
+            { value: "staff", label: "Staff/Resolver Login" },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={loginRole === option.value}
+              onClick={() => {
+                setLoginRole(option.value);
+                setError("");
+              }}
+              className={`rounded-lg border px-3 py-2.5 text-sm font-medium ${
+                loginRole === option.value
+                  ? "border-primary-700 bg-blue-50 text-primary-800"
+                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </fieldset>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-gray-700">Email</span>
           <span className="relative block">

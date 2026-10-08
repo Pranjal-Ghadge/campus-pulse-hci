@@ -17,7 +17,7 @@ function MyIssues() {
     setIsLoading(true);
     setLoadError("");
 
-    apiRequest("/api/issues")
+    apiRequest("/api/issues/my")
       .then(({ issues: loadedIssues }) => {
         if (isCurrent) {
           setIssues(loadedIssues.map((issue) => ({ ...issue, icon: AlertTriangle })));

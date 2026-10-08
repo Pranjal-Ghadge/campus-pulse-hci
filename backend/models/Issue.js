@@ -1,5 +1,30 @@
 const mongoose = require("mongoose");
 
+const issueEventSchema = new mongoose.Schema(
+  {
+    actor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    action: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    status: {
+      type: String,
+      default: null,
+    },
+    note: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+  },
+  { timestamps: true }
+);
+
 const issueSchema = new mongoose.Schema(
   {
     trackingId: {
@@ -78,6 +103,39 @@ const issueSchema = new mongoose.Schema(
     assignedDepartment: {
       type: String,
       default: null,
+    },
+
+    assignedDepartmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      default: null,
+    },
+
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    assignedAt: {
+      type: Date,
+      default: null,
+    },
+
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
+
+    resolutionNote: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    timeline: {
+      type: [issueEventSchema],
+      default: [],
     },
 
     supporters: [

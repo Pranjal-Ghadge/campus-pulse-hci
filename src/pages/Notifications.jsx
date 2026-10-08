@@ -1,84 +1,43 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FileText, Users, Check, Lightbulb, Bell, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../utils/api";
 
 function Notifications() {
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState("All");
+  const [notifications, setNotifications] = useState([]);
+  const [loadError, setLoadError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: "progress",
-      title: "Your issue is being investigated",
-      message:
-        "Library Wi-Fi Connectivity Problem has been assigned to the IT department.",
-      time: "10 minutes ago",
-      group: "Today",
-      unread: true,
-      issueId: "CP-1024",
-      icon: FileText,
-    },
-    {
-      id: 2,
-      type: "support",
-      title: "Your issue reached 100 supporters",
-      message:
-        "More students are reporting the same Library Wi-Fi problem.",
-      time: "1 hour ago",
-      group: "Today",
-      unread: true,
-      issueId: "CP-1024",
-      icon: Users,
-    },
-    {
-      id: 3,
-      type: "action",
-      title: "Resolution needs your verification",
-      message:
-        "The AC issue in Room 204 has been marked as resolved. Please confirm whether the problem has been fixed.",
-      time: "3 hours ago",
-      group: "Today",
-      unread: true,
-      issueId: "CP-1018",
-      icon: Check,
-      action: true,
-    },
-    {
-      id: 4,
-      type: "update",
-      title: "Your suggestion is under review",
-      message:
-        "Your suggestion for additional charging points in the library is being reviewed.",
-      time: "Yesterday",
-      group: "Earlier",
-      unread: false,
-      issueId: "CP-0997",
-      icon: Lightbulb,
-    },
-    {
-      id: 5,
-      type: "community",
-      title: "An issue you supported was updated",
-      message:
-        "The water dispenser maintenance issue has been assigned to Facilities.",
-      time: "Yesterday",
-      group: "Earlier",
-      unread: false,
-      issueId: "CP-1009",
-      icon: Bell,
-    },
-    {
-      id: 6,
-      type: "resolved",
-      title: "Issue resolved",
-      message:
-        "The classroom AC issue you reported has been resolved.",
-      time: "2 days ago",
-      group: "Earlier",
-      unread: false,
-      issueId: "CP-1018",
-      icon: CheckCircle,
-    },
-  ]);
+  useEffect(() => {
+    let active = true;
+    apiRequest("/api/notifications")
+      .then(({ notifications: loaded }) => {
+        if (active) setNotifications((loaded || []).map((notification) => ({
+          ...notification,
+          icon: ({
+            progress: FileText,
+            support: Users,
+            action: Check,
+            update: Lightbulb,
+            community: Bell,
+            resolved: CheckCircle,
+          })[notification.type] || Bell,
+          time: new Date(notification.createdAt).toLocaleString(),
+          group: new Date(notification.createdAt).toDateString() === new Date().toDateString()
+            ? "Today"
+            : "Earlier",
+        })));
+      })
+      .catch((error) => {
+        if (active) setLoadError(error.message || "Unable to load notifications.");
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   const unreadCount = notifications.filter(
     (notification) => notification.unread
@@ -108,7 +67,9 @@ function Notifications() {
     return true;
   });
 
-  const markAsRead = (id) => {
+  const markAsRead = async (id) => {
+    try {
+    await apiRequest(`/api/notifications/${encodeURIComponent(id)}/read`, { method: "PUT" });
     setNotifications((current) =>
       current.map((notification) =>
         notification.id === id
@@ -116,15 +77,23 @@ function Notifications() {
           : notification
       )
     );
+    } catch (error) {
+    setLoadError(error.message || "Unable to update this notification.");
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    try {
+    await apiRequest("/api/notifications/read-all", { method: "PUT" });
     setNotifications((current) =>
       current.map((notification) => ({
         ...notification,
         unread: false,
       }))
     );
+    } catch (error) {
+    setLoadError(error.message || "Unable to update notifications.");
+    }
   };
 
   const getIconStyle = (type) => {
@@ -224,6 +193,7 @@ function Notifications() {
                 onClick={(e) => {
                   e.stopPropagation();
                   markAsRead(notification.id);
+                  if (notification.databaseIssueId) navigate(`/issues/${encodeURIComponent(notification.databaseIssueId)}`);
                 }}
                 className="rounded-lg bg-sky-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-600"
               >
@@ -232,7 +202,10 @@ function Notifications() {
 
               <button
                 type="button"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (notification.databaseIssueId) navigate(`/issues/${encodeURIComponent(notification.databaseIssueId)}`);
+                }}
                 className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 transition hover:bg-gray-50"
               >
                 View Issue
@@ -248,6 +221,7 @@ function Notifications() {
               onClick={(e) => {
                 e.stopPropagation();
                 markAsRead(notification.id);
+                if (notification.databaseIssueId) navigate(`/issues/${encodeURIComponent(notification.databaseIssueId)}`);
               }}
               className="mt-3 text-xs font-semibold text-sky-600 hover:text-sky-700"
             >
@@ -371,6 +345,10 @@ function Notifications() {
 
         </div>
 
+        {loadError && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{loadError}</p>}
+
+        {isLoading && <p role="status" className="mb-4 rounded-lg bg-white p-5 text-sm text-slate-500">Loading notifications...</p>}
+
         {/* Today */}
         {todayNotifications.length > 0 && (
           <section className="mb-8">
@@ -410,7 +388,7 @@ function Notifications() {
         )}
 
         {/* Empty State */}
-        {filteredNotifications.length === 0 && (
+        {filteredNotifications.length === 0 && !isLoading && !loadError && (
           <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
 
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-50 text-sky-600">
