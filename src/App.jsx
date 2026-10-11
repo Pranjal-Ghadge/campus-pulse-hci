@@ -19,6 +19,7 @@ import StaffAllIssues from './pages/StaffAllIssues';
 import StaffIssueDetails from './pages/StaffIssueDetails';
 import StaffWorklist from './pages/StaffWorklist';
 import StaffInsights from './pages/StaffInsights';
+import LandingPage from './pages/LandingPage';
 import { StudentProvider, useStudent } from './context/StudentContext';
 
 function LoadingScreen({ message = 'Checking your session...' }) {
@@ -123,12 +124,13 @@ function PublicOnly({ children }) {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/vjti-pulse" element={<LandingPage />} />
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/signup" element={<PublicOnly><Signup /></PublicOnly>} />
       <Route element={<RequireAuth />}>
         <Route element={<RequireRole role="student" />}>
           <Route element={<AuthenticatedLayout />}>
-            <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/report" element={<Report />} />
             <Route path="/my-issues" element={<MyIssues />} />

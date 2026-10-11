@@ -87,3 +87,38 @@ input, select, textarea {
 .min-h-screen.bg-gray-50 {
   background-color: #f4f8fc;
 }
+
+@media (max-height: 600px) {
+  .landing-hero-content {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .landing-hero-badge {
+    margin-bottom: 0.75rem;
+  }
+
+  .landing-hero-title {
+    font-size: clamp(2rem, 7vh, 3.5rem);
+  }
+
+  .landing-hero-tagline {
+    margin-top: 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  .landing-hero-description {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .landing-hero-actions {
+    margin-top: 0.75rem;
+  }
+
+  .landing-hero-proof {
+    display: none;
+  }
+}

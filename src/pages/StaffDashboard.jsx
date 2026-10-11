@@ -20,6 +20,7 @@ function StaffDashboard() {
   const { profile } = useStudent();
   const [issues, setIssues] = useState([]);
   const [department, setDepartment] = useState("");
+  const [selectedHotspot, setSelectedHotspot] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -53,11 +54,32 @@ function StaffDashboard() {
           || Number(Boolean(second.escalatedAt)) - Number(Boolean(first.escalatedAt))
           || (second.affected || 0) - (first.affected || 0))
         .slice(0, 5),
-      hotspots: [...new Set(issues.map((issue) => issue.location).filter(Boolean))]
-        .map((location) => ({ location, count: issues.filter((issue) => issue.location === location).length }))
-        .sort((first, second) => second.count - first.count).slice(0, 4),
+      hotspots: [...issues.reduce((locations, issue) => {
+        const location = issue.location || "Location not specified";
+        const hotspot = locations.get(location) || {
+          location,
+          issueCount: 0,
+          openImpact: 0,
+          resolvedImpact: 0,
+          safetyCount: 0,
+          issues: [],
+        };
+        const affected = issue.affected || 1;
+        hotspot.issueCount += 1;
+        if (issue.statusCode === "resolved") hotspot.resolvedImpact += affected;
+        else hotspot.openImpact += affected;
+        if (issue.type === "safety" && issue.statusCode !== "resolved") hotspot.safetyCount += 1;
+        hotspot.issues.push(issue);
+        locations.set(location, hotspot);
+        return locations;
+      }, new Map()).values()]
+        .map((spot) => ({ ...spot, impact: spot.openImpact + spot.resolvedImpact }))
+        .sort((first, second) => second.impact - first.impact || second.issueCount - first.issueCount)
+        .slice(0, 5),
     };
   }, [issues]);
+  const maxHotspotImpact = Math.max(1, ...metrics.hotspots.map((spot) => spot.impact));
+  const activeHotspot = metrics.hotspots.find((spot) => spot.location === selectedHotspot);
 
   const cards = [
     { label: "Unassigned issues", value: metrics.unassigned, href: "/staff/issues?filter=unassigned", icon: ClipboardList, style: "text-blue-800 bg-blue-50" },
@@ -127,17 +149,70 @@ function StaffDashboard() {
           </article>
 
           <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold text-slate-900">Campus hotspots</h2>
-            <p className="mt-1 text-sm text-slate-500">Most reported locations in the current issue set.</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-slate-900">Campus hotspots</h2>
+                <p className="mt-1 text-sm text-slate-500">Where affected-student reports are concentrated.</p>
+              </div>
+              <span className="rounded-lg bg-blue-50 p-2 text-blue-800"><Activity size={17} /></span>
+            </div>
             {loading ? <p role="status" className="mt-5 text-sm text-slate-500">Loading locations...</p>
               : metrics.hotspots.length === 0 ? <p className="mt-5 text-sm text-slate-500">No location data available.</p>
-                : <ul className="mt-5 space-y-4">{metrics.hotspots.map((spot) => (
-                  <li key={spot.location}>
-                    <div className="mb-1 flex justify-between gap-3 text-sm"><span className="truncate font-medium text-slate-700">{spot.location}</span><span className="text-slate-500">{spot.count}</span></div>
-                    <div className="h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-primary-600" style={{ width: `${Math.max(8, spot.count / Math.max(...metrics.hotspots.map((entry) => entry.count)) * 100)}%` }} /></div>
-                  </li>
-                ))}</ul>}
-            <Link to="/staff/insights" className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-primary-700">Explore insights <ArrowRight size={15} /></Link>
+                : <>
+                  <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-slate-600" aria-label="Chart legend">
+                    <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-sky-500" />Open impact</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Resolved impact</span>
+                    <span className="inline-flex items-center gap-1.5"><ShieldAlert size={13} className="text-red-700" />Open safety issue</span>
+                  </div>
+                  <div className="mt-4 space-y-2" role="group" aria-label="Affected-student reports by campus location">
+                    {metrics.hotspots.map((spot) => {
+                      const selected = selectedHotspot === spot.location;
+                      const impactWidth = Math.max(4, spot.impact / maxHotspotImpact * 100);
+                      const openWidth = spot.impact ? spot.openImpact / spot.impact * 100 : 0;
+                      return (
+                        <button
+                          key={spot.location}
+                          type="button"
+                          aria-pressed={selected}
+                          aria-label={`${spot.location}: ${spot.impact} affected-student reports across ${spot.issueCount} issues${spot.safetyCount ? `, ${spot.safetyCount} open safety concerns` : ""}`}
+                          onClick={() => setSelectedHotspot(selected ? "" : spot.location)}
+                          className={`block w-full rounded-lg p-2.5 text-left transition ${selected ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-slate-50"}`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-1.5 truncate text-sm font-medium text-slate-800">
+                              {spot.safetyCount > 0 && <ShieldAlert size={14} className="shrink-0 text-red-700" />}
+                              <span className="truncate">{spot.location}</span>
+                            </span>
+                            <span className="shrink-0 text-xs tabular-nums text-slate-600">{spot.impact} affected · {spot.issueCount} {spot.issueCount === 1 ? "issue" : "issues"}</span>
+                          </span>
+                          <span className="mt-2 block h-3 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+                            <span className="flex h-full overflow-hidden rounded-full transition-[width] duration-500" style={{ width: `${impactWidth}%` }}>
+                              {spot.openImpact > 0 && <span className="h-full bg-sky-500" style={{ width: `${openWidth}%` }} />}
+                              {spot.resolvedImpact > 0 && <span className="h-full bg-emerald-500" style={{ width: `${100 - openWidth}%` }} />}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {activeHotspot && (
+                    <div className="mt-3 rounded-lg border border-gray-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-800">{activeHotspot.location}</p>
+                        <span className="text-xs text-slate-500">{activeHotspot.openImpact} open · {activeHotspot.resolvedImpact} resolved impact</span>
+                      </div>
+                      <ul className="mt-2 space-y-1.5">
+                        {activeHotspot.issues.slice(0, 3).map((issue) => (
+                          <li key={issue._id}>
+                            <Link to={`/staff/issues/${encodeURIComponent(issue._id)}`} className="block truncate text-xs text-primary-700 hover:underline">{issue.title}</Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>}
+            <p className="mt-3 text-[11px] leading-4 text-slate-500">Affected counts are summed per issue, so a student supporting multiple reports may appear more than once.</p>
+            <Link to="/staff/insights" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary-700">Explore insights <ArrowRight size={15} /></Link>
           </article>
         </section>
         <p className="mt-4 text-xs text-slate-500">The 7-day item is a demo review-age indicator, not a configured institutional SLA.</p>
