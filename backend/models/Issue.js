@@ -83,6 +83,7 @@ const issueSchema = new mongoose.Schema(
         "submitted",
         "under_review",
         "in_progress",
+        "pending_verification",
         "resolved",
         "reopened",
       ],
@@ -128,6 +129,25 @@ const issueSchema = new mongoose.Schema(
     },
 
     resolutionNote: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    resolutionEvidence: [{
+      filename: { type: String, required: true, trim: true },
+      contentType: { type: String, required: true },
+      data: { type: Buffer, required: true },
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+      createdAt: { type: Date, default: Date.now },
+    }],
+
+    escalatedAt: {
+      type: Date,
+      default: null,
+    },
+
+    escalationReason: {
       type: String,
       default: "",
       trim: true,

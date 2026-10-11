@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, MapPin, Tag, Users, RotateCcw } from "lucide-react";
+import { ArrowLeft, CalendarDays, Download, MapPin, Tag, Users, RotateCcw } from "lucide-react";
 import { apiRequest } from "../utils/api";
 
 function IssueDetails() {
@@ -85,6 +85,40 @@ function IssueDetails() {
     }
   };
 
+  const submitVerification = async (decision) => {
+    if (decision === "verified" && !window.confirm("Confirm that the reported fix has resolved this issue?")) return;
+    const note = decision === "rejected" ? window.prompt("What still needs attention?") : "";
+    if (decision === "rejected" && !note?.trim()) return;
+    setActionMessage("");
+    setActionError("");
+    try {
+      const { issue: updatedIssue } = await apiRequest(`/api/issues/${encodeURIComponent(issue.databaseId)}/verification`, {
+        method: "PUT",
+        body: JSON.stringify({ decision, note: note?.trim() || "" }),
+      });
+      setIssue(updatedIssue);
+      setActionMessage(decision === "verified" ? "Thanks for confirming the resolution." : "Your feedback was sent to the resolver.");
+    } catch (error) {
+      setActionError(error.message || "Unable to save your verification.");
+    }
+  };
+
+  const downloadEvidence = async (item) => {
+    setActionError("");
+    try {
+      const result = await apiRequest(`/api/issues/${encodeURIComponent(issue.databaseId)}/evidence/${encodeURIComponent(item.id)}`);
+      const bytes = Uint8Array.from(atob(result.data), (character) => character.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: result.contentType }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setActionError(error.message || "Unable to download the evidence file.");
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-8 pt-20 lg:ml-64 lg:px-10 lg:pt-8">
       <div className="mx-auto max-w-4xl">
@@ -141,8 +175,29 @@ function IssueDetails() {
           </dl>
           {issue.resolutionNote && (
             <section className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-              <h2 className="font-semibold text-emerald-900">Resolution</h2>
+              <h2 className="font-semibold text-emerald-900">{issue.statusCode === "pending_verification" ? "Please verify this resolution" : "Resolution"}</h2>
               <p className="mt-1 whitespace-pre-wrap text-sm text-emerald-800">{issue.resolutionNote}</p>
+              {issue.evidence?.length > 0 && (
+                <ul className="mt-3 space-y-1 text-sm text-emerald-900">
+                  {issue.evidence.map((item) => (
+                    <li key={item.id}>
+                      <button type="button" onClick={() => downloadEvidence(item)} className="inline-flex items-center gap-2 font-medium underline">
+                        <Download size={14} />{item.filename}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+          {issue.statusCode === "pending_verification" && issue.canVerify && (
+            <section className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
+              <h2 className="font-semibold text-blue-950">Is the issue fixed?</h2>
+              <p className="mt-1 text-sm text-blue-900">Review the resolver’s notes and evidence, then confirm or ask for more work.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="button" onClick={() => submitVerification("verified")} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Yes, verify resolution</button>
+                <button type="button" onClick={() => submitVerification("rejected")} className="rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50">No, request more work</button>
+              </div>
             </section>
           )}
           {(issue.comments || []).length > 0 && (

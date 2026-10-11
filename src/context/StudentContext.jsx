@@ -84,6 +84,7 @@ export function StudentProvider({ children }) {
       body: JSON.stringify({
         email: credentials.email,
         password: credentials.password,
+        role: credentials.role,
       }),
     });
     const effectiveRole = user.role || "student";

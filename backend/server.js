@@ -19,7 +19,7 @@ dotenv.config({ path: path.resolve(__dirname, ".env") });
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 
 const databaseReady = connectDB();
 
@@ -190,6 +190,7 @@ app.post("/api/auth/signup", async (req, res) => {
 app.post("/api/auth/login", async (req, res) => {
   const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
   const password = typeof req.body?.password === "string" ? req.body.password : "";
+  const requestedRole = req.body?.role;
   if (!email || !password) {
     return res.status(400).json({ message: "Enter your email and password." });
   }
@@ -197,11 +198,21 @@ app.post("/api/auth/login", async (req, res) => {
     console.error("JWT_SECRET is not configured.");
     return res.status(500).json({ message: "Authentication is temporarily unavailable." });
   }
+  if (requestedRole !== "student" && requestedRole !== "staff") {
+    return res.status(400).json({ message: "Select a valid login role." });
+  }
 
   try {
     const user = await User.findOne({ email }).select("+password");
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: "Email or password is incorrect." });
+    }
+    if (user.role !== requestedRole) {
+      return res.status(403).json({
+        message: requestedRole === "staff"
+          ? "This account is not registered as a staff member."
+          : "This account is not registered as a student.",
+      });
     }
 
     const token = createAuthToken(user);
@@ -236,6 +247,7 @@ const statusLabels = {
   submitted: "Submitted",
   under_review: "Under Review",
   in_progress: "In Progress",
+  pending_verification: "Pending Student Verification",
   resolved: "Resolved",
   reopened: "Reopened",
 };
@@ -244,6 +256,7 @@ const statusMessages = {
   submitted: "Submitted successfully",
   under_review: "Being reviewed",
   in_progress: "Work is in progress",
+  pending_verification: "Awaiting your verification",
   resolved: "Resolved",
   reopened: "Reopened for review",
 };
@@ -263,7 +276,7 @@ const formatUpdatedTime = (date) => {
   });
 };
 
-const formatIssue = (issue, currentUserId, comments = issue.comments || []) => {
+const formatIssue = (issue, currentUserId, comments = issue.comments || [], includeSupporterDetails = false) => {
   const createdAt = issue.createdAt || new Date();
   const status = issue.status || "submitted";
   const supporters = issue.supporters || [];
@@ -296,6 +309,19 @@ const formatIssue = (issue, currentUserId, comments = issue.comments || []) => {
     assignedAt: issue.assignedAt,
     resolvedAt: issue.resolvedAt,
     resolutionNote: issue.resolutionNote || "",
+    verificationStatus: issue.verificationStatus || "not_required",
+    canVerify: String(issue.reportedBy?._id || issue.reportedBy || "") === String(currentUserId),
+    evidence: (issue.resolutionEvidence || []).map((item) => ({
+      id: String(item._id),
+      filename: item.filename,
+      contentType: item.contentType,
+      size: item.data?.length || 0,
+      createdAt: item.createdAt,
+    })),
+    escalatedAt: issue.escalatedAt,
+    escalationReason: issue.escalationReason || "",
+    createdAt,
+    updatedAt: issue.updatedAt || createdAt,
     timeline: (issue.timeline || []).map((event) => ({
       id: String(event._id),
       action: event.action,
@@ -311,18 +337,23 @@ const formatIssue = (issue, currentUserId, comments = issue.comments || []) => {
       role: comment.user?.role || "student",
       createdAt: comment.createdAt,
     })),
-    reporter: issue.isAnonymous
+    reporter: issue.isAnonymous || !issue.reportedBy?.name
       ? null
-      : issue.reportedBy
-        ? {
-            name: issue.reportedBy.name,
-            email: issue.reportedBy.email,
-          }
-        : null,
+      : {
+          name: issue.reportedBy.name,
+          email: issue.reportedBy.email,
+        },
     affected: supporters.length + 1,
+    affectedStudents: includeSupporterDetails
+      ? supporters.filter((supporter) => supporter && typeof supporter === "object" && supporter.name).map((supporter) => ({
+          id: String(supporter._id),
+          name: supporter.name,
+        }))
+      : undefined,
     supportedByCurrentUser: supporters.some(
       (supporter) => String(supporter) === String(currentUserId)
     ),
+    reportedByCurrentUser: String(issue.reportedBy?._id || issue.reportedBy || "") === String(currentUserId),
     updated: formatUpdatedTime(issue.updatedAt || createdAt),
     date: new Date(createdAt).toLocaleDateString("en-US", {
       month: "short",
@@ -427,6 +458,50 @@ app.get("/api/issues/my", authenticate, requireStudent, async (req, res) => {
   }
 });
 
+app.get("/api/community/issues", authenticate, requireStudent, async (req, res) => {
+  try {
+    const issues = await Issue.find().sort({ updatedAt: -1 });
+    return res.json({
+      issues: issues.map((issue) => formatIssue(issue, req.user._id)),
+    });
+  } catch (error) {
+    console.error("Community issue list request failed:", error);
+    return res.status(500).json({ message: "Unable to load campus issues right now." });
+  }
+});
+
+app.put("/api/issues/:id/support", authenticate, requireStudent, async (req, res) => {
+  try {
+    const { supported } = req.body || {};
+    if (typeof supported !== "boolean") {
+      return res.status(400).json({ message: "Choose whether you are affected by this issue." });
+    }
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: "Issue not found." });
+    }
+
+    const issue = await Issue.findById(req.params.id);
+    if (!issue) return res.status(404).json({ message: "Issue not found." });
+    if (supported && String(issue.reportedBy) === String(req.user._id)) {
+      return res.status(400).json({ message: "You are already counted as the reporter of this issue." });
+    }
+
+    const update = supported
+      ? { $addToSet: { supporters: req.user._id } }
+      : { $pull: { supporters: req.user._id } };
+    const updatedIssue = await Issue.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+      runValidators: true,
+    });
+    if (!updatedIssue) return res.status(404).json({ message: "Issue not found." });
+
+    return res.json({ issue: formatIssue(updatedIssue, req.user._id) });
+  } catch (error) {
+    console.error("Issue support update failed:", error);
+    return res.status(500).json({ message: "Unable to update your support right now." });
+  }
+});
+
 app.get("/api/issues/:id", authenticate, requireStudent, async (req, res) => {
   try {
     const issueIdentity = mongoose.isValidObjectId(req.params.id)
@@ -434,15 +509,20 @@ app.get("/api/issues/:id", authenticate, requireStudent, async (req, res) => {
       : { trackingId: req.params.id };
     const issue = await Issue.findOne({
       ...issueIdentity,
-      reportedBy: req.user._id,
+      $or: [
+        { reportedBy: req.user._id },
+        { supporters: req.user._id },
+      ],
     });
 
     if (!issue) {
       return res.status(404).json({ message: "Issue not found." });
     }
 
+    if (String(issue.reportedBy) === String(req.user._id)) {
+      await issue.populate("reportedBy", "name email");
+    }
     await issue.populate([
-      { path: "reportedBy", select: "name email" },
       { path: "assignedTo", select: "name email" },
       { path: "timeline.actor", select: "name" },
     ]);
@@ -501,12 +581,13 @@ app.get("/api/staff/issues/:id", authenticate, requireStaff, async (req, res) =>
     const issue = await Issue.findById(req.params.id)
       .populate("reportedBy", "name email")
       .populate("assignedTo", "name email")
+      .populate("supporters", "name")
       .populate("timeline.actor", "name");
     if (!issue) return res.status(404).json({ message: "Issue not found." });
     const comments = await Comment.find({ issue: issue._id })
       .populate("user", "name role")
       .sort({ createdAt: 1 });
-    return res.json({ issue: formatIssue(issue, req.user._id, comments) });
+    return res.json({ issue: formatIssue(issue, req.user._id, comments, true) });
   } catch (error) {
     console.error("Staff issue detail request failed:", error);
     return res.status(500).json({ message: "Unable to load this issue right now." });
@@ -520,13 +601,17 @@ const findStaffIssue = async (id, staff) => {
 };
 
 const notifyReporter = async (issue, title, message, type = "progress") => {
-  await Notification.create({
-    user: issue.reportedBy,
+  const recipients = [...new Set([
+    String(issue.reportedBy),
+    ...(issue.supporters || []).map((supporter) => String(supporter)),
+  ])];
+  await Notification.insertMany(recipients.map((user) => ({
+    user,
     issue: issue._id,
     title,
     message,
     type,
-  });
+  })));
 };
 
 app.put("/api/staff/issues/:id/status", authenticate, requireStaff, async (req, res) => {
@@ -662,31 +747,136 @@ app.put("/api/staff/issues/:id/resolve", authenticate, requireStaff, async (req,
     const resolutionNote = typeof req.body?.resolutionNote === "string"
       ? req.body.resolutionNote.trim()
       : "";
-    if (issue.status !== "in_progress" || !resolutionNote) {
-      return res.status(400).json({
-        message: "Move the issue to In Progress and record the action taken before resolving it.",
+    const incomingEvidence = Array.isArray(req.body?.evidence) ? req.body.evidence : [];
+    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+    const validatedEvidence = [];
+    let evidenceBytes = 0;
+    for (const item of incomingEvidence) {
+      if (
+        typeof item?.filename !== "string" ||
+        typeof item?.contentType !== "string" ||
+        typeof item?.data !== "string" ||
+        !allowedTypes.has(item.contentType)
+      ) {
+        return res.status(400).json({ message: "Evidence must be a JPEG, PNG, WebP, or PDF file." });
+      }
+      const data = item.data.replace(/^data:[^,]*;base64,/, "");
+      if (!/^[A-Za-z0-9+/]*={0,2}$/.test(data)) {
+        return res.status(400).json({ message: "One of the evidence files is invalid." });
+      }
+      const buffer = Buffer.from(data, "base64");
+      evidenceBytes += buffer.length;
+      if (!buffer.length || buffer.length > 1024 * 1024 || evidenceBytes > 1024 * 1024) {
+        return res.status(400).json({ message: "Evidence files must total no more than 1 MB." });
+      }
+      validatedEvidence.push({
+        filename: path.basename(item.filename).slice(0, 150),
+        contentType: item.contentType,
+        data: buffer,
+        uploadedBy: req.user._id,
       });
     }
-    issue.status = "resolved";
-    issue.resolvedAt = new Date();
+    if (issue.status !== "in_progress" || !resolutionNote || !validatedEvidence.length) {
+      return res.status(400).json({
+        message: "Move the issue to In Progress, record the action taken, and attach at least one proof file before requesting student verification.",
+      });
+    }
+    issue.status = "pending_verification";
+    issue.verificationStatus = "pending";
     issue.resolutionNote = resolutionNote;
+    issue.resolutionEvidence.push(...validatedEvidence);
     issue.timeline.push({
       actor: req.user._id,
-      action: "Issue resolved",
-      status: "resolved",
+      action: "Resolution submitted for student verification",
+      status: "pending_verification",
       note: resolutionNote,
     });
     await issue.save();
     await notifyReporter(
       issue,
-      "Issue resolved",
-      `Your issue ${issue.trackingId} has been resolved.`,
-      "resolved"
+      "Please verify the reported fix",
+      `Staff reported a resolution for ${issue.trackingId}. Review the update and confirm whether the issue is resolved.`,
+      "action"
     );
     return res.json({ success: true, issue: formatIssue(issue, req.user._id) });
   } catch (error) {
     console.error("Issue resolution failed:", error);
     return res.status(500).json({ message: "Unable to resolve this issue." });
+  }
+});
+
+app.get("/api/staff/issues/:id/evidence/:evidenceId", authenticate, requireStaff, async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id);
+    if (!issue) return res.status(404).json({ message: "Issue not found." });
+    const evidence = issue.resolutionEvidence.id(req.params.evidenceId);
+    if (!evidence) return res.status(404).json({ message: "Evidence file not found." });
+    return res.json({
+      filename: evidence.filename,
+      contentType: evidence.contentType,
+      data: evidence.data.toString("base64"),
+    });
+  } catch (error) {
+    console.error("Issue evidence download failed:", error);
+    return res.status(500).json({ message: "Unable to download this evidence file." });
+  }
+});
+
+app.put("/api/staff/issues/:id/escalate", authenticate, requireStaff, async (req, res) => {
+  try {
+    const { issue, error } = await findStaffIssue(req.params.id, req.user);
+    if (error) return res.status(error.status).json({ message: error.message });
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    if (!reason || reason.length > 1000) {
+      return res.status(400).json({ message: "Enter an escalation reason of up to 1,000 characters." });
+    }
+    issue.escalatedAt = new Date();
+    issue.escalationReason = reason;
+    issue.timeline.push({
+      actor: req.user._id,
+      action: "Issue escalated for administrator review",
+      status: issue.status,
+      note: reason,
+    });
+    await issue.save();
+    return res.json({ success: true, issue: formatIssue(issue, req.user._id) });
+  } catch (error) {
+    console.error("Issue escalation failed:", error);
+    return res.status(500).json({ message: "Unable to escalate this issue." });
+  }
+});
+
+app.put("/api/staff/issues/:id/reopen", authenticate, requireStaff, async (req, res) => {
+  try {
+    const { issue, error } = await findStaffIssue(req.params.id, req.user);
+    if (error) return res.status(error.status).json({ message: error.message });
+    if (issue.status !== "resolved") {
+      return res.status(400).json({ message: "Only resolved issues can be reopened." });
+    }
+    const note = typeof req.body?.note === "string" ? req.body.note.trim() : "";
+    if (!note) {
+      return res.status(400).json({ message: "Add a reason before reopening this issue." });
+    }
+
+    issue.status = "reopened";
+    issue.resolutionNote = "";
+    issue.timeline.push({
+      actor: req.user._id,
+      action: "Issue reopened by staff",
+      status: "reopened",
+      note,
+    });
+    await issue.save();
+    await notifyReporter(
+      issue,
+      "Issue reopened",
+      `Your issue ${issue.trackingId} is now Reopened for further review.`,
+      "action"
+    );
+    return res.json({ success: true, issue: formatIssue(issue, req.user._id) });
+  } catch (error) {
+    console.error("Staff issue reopen failed:", error);
+    return res.status(500).json({ message: "Unable to reopen this issue." });
   }
 });
 
@@ -707,6 +897,70 @@ app.put("/api/issues/:id/reopen", authenticate, requireStudent, async (req, res)
   } catch (error) {
     console.error("Issue reopen failed:", error);
     return res.status(500).json({ message: "Unable to reopen this issue." });
+  }
+});
+
+app.put("/api/issues/:id/verification", authenticate, requireStudent, async (req, res) => {
+  try {
+    const issue = await Issue.findOne({ _id: req.params.id, reportedBy: req.user._id });
+    if (!issue) return res.status(404).json({ message: "Issue not found." });
+    if (issue.status !== "pending_verification" || issue.verificationStatus !== "pending") {
+      return res.status(400).json({ message: "This issue is not waiting for your verification." });
+    }
+    const decision = req.body?.decision;
+    if (decision !== "verified" && decision !== "rejected") {
+      return res.status(400).json({ message: "Choose whether the issue is resolved." });
+    }
+    const note = typeof req.body?.note === "string" ? req.body.note.trim() : "";
+    if (decision === "rejected" && !note) {
+      return res.status(400).json({ message: "Explain what still needs attention." });
+    }
+    issue.verificationStatus = decision;
+    issue.status = decision === "verified" ? "resolved" : "in_progress";
+    if (decision === "verified") issue.resolvedAt = new Date();
+    else issue.resolvedAt = null;
+    issue.timeline.push({
+      actor: req.user._id,
+      action: decision === "verified" ? "Student verified the resolution" : "Student requested more work",
+      status: issue.status,
+      note,
+    });
+    await issue.save();
+    await notifyReporter(
+      issue,
+      decision === "verified" ? "Resolution verified" : "Further work requested",
+      decision === "verified"
+        ? `You confirmed that ${issue.trackingId} is resolved.`
+        : `You asked staff to continue working on ${issue.trackingId}.`,
+      decision === "verified" ? "resolved" : "action"
+    );
+    return res.json({ success: true, issue: formatIssue(issue, req.user._id) });
+  } catch (error) {
+    console.error("Student issue verification failed:", error);
+    return res.status(500).json({ message: "Unable to save your verification right now." });
+  }
+});
+
+app.get("/api/issues/:id/evidence/:evidenceId", authenticate, requireStudent, async (req, res) => {
+  try {
+    const issue = await Issue.findOne({
+      _id: req.params.id,
+      $or: [
+        { reportedBy: req.user._id },
+        { supporters: req.user._id },
+      ],
+    });
+    if (!issue) return res.status(404).json({ message: "Issue not found." });
+    const evidence = issue.resolutionEvidence.id(req.params.evidenceId);
+    if (!evidence) return res.status(404).json({ message: "Evidence file not found." });
+    return res.json({
+      filename: evidence.filename,
+      contentType: evidence.contentType,
+      data: evidence.data.toString("base64"),
+    });
+  } catch (error) {
+    console.error("Student evidence download failed:", error);
+    return res.status(500).json({ message: "Unable to download this evidence file." });
   }
 });
 

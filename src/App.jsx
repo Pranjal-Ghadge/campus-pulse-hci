@@ -15,7 +15,10 @@ import SettingsPage from './pages/Settings';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import StaffDashboard from './pages/StaffDashboard';
+import StaffAllIssues from './pages/StaffAllIssues';
 import StaffIssueDetails from './pages/StaffIssueDetails';
+import StaffWorklist from './pages/StaffWorklist';
+import StaffInsights from './pages/StaffInsights';
 import { StudentProvider, useStudent } from './context/StudentContext';
 
 function LoadingScreen({ message = 'Checking your session...' }) {
@@ -139,7 +142,12 @@ function AppRoutes() {
         </Route>
         <Route element={<RequireRole role="staff" />}>
           <Route path="/staff" element={<StaffDashboard />} />
+          <Route path="/staff/issues" element={<StaffAllIssues />} />
           <Route path="/staff/issues/:id" element={<StaffIssueDetails />} />
+          <Route path="/staff/assigned" element={<StaffWorklist />} />
+          <Route path="/staff/resolved" element={<StaffWorklist />} />
+          <Route path="/staff/escalations" element={<StaffWorklist />} />
+          <Route path="/staff/insights" element={<StaffInsights />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

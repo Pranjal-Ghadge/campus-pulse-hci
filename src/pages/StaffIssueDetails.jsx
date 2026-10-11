@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Check, LoaderCircle } from "lucide-react";
+import { ArrowLeft, Check, Download, LoaderCircle, ShieldAlert, Upload } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import StaffSidebar from "../components/StaffSidebar";
 import { apiRequest } from "../utils/api";
 
 const statusLabels = {
@@ -18,6 +19,8 @@ function StaffIssueDetails() {
   const [assignee, setAssignee] = useState("");
   const [comment, setComment] = useState("");
   const [resolutionNote, setResolutionNote] = useState("");
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
+  const [escalationReason, setEscalationReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -67,12 +70,58 @@ function StaffIssueDetails() {
     setComment("");
   };
 
+  const requestInformation = async () => {
+    const details = window.prompt("What information would help you investigate this issue?");
+    if (!details?.trim()) return;
+    await perform(
+      `/api/staff/issues/${encodeURIComponent(id)}/comments`,
+      "POST",
+      { text: `More information requested: ${details.trim()}` },
+      "Information request sent to the affected students."
+    );
+  };
+
+  const submitResolution = async (event) => {
+    event.preventDefault();
+    if (!resolutionNote.trim() || evidenceFiles.length === 0) return;
+    if (!window.confirm("Send this resolution and evidence to the student for verification?")) return;
+    try {
+      const evidence = await Promise.all(evidenceFiles.map((file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ filename: file.name, contentType: file.type, data: reader.result });
+        reader.onerror = () => reject(new Error(`Unable to read ${file.name}.`));
+        reader.readAsDataURL(file);
+      })));
+      await perform(`/api/staff/issues/${encodeURIComponent(id)}/resolve`, "PUT", { resolutionNote, evidence }, "Resolution submitted for student verification.");
+      setEvidenceFiles([]);
+      setResolutionNote("");
+    } catch (requestError) {
+      setError(requestError.message || "Unable to prepare the evidence files.");
+    }
+  };
+
+  const downloadEvidence = async (item) => {
+    try {
+      const result = await apiRequest(`/api/staff/issues/${encodeURIComponent(id)}/evidence/${encodeURIComponent(item.id)}`);
+      const bytes = Uint8Array.from(atob(result.data), (character) => character.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: result.contentType }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to download this evidence file.");
+    }
+  };
+
   const canReview = issue?.statusCode === "submitted" || issue?.statusCode === "reopened";
   const canStartWork = issue?.statusCode === "under_review";
 
   return (
-    <main className="min-h-screen bg-gray-50 px-5 py-8 sm:px-8">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen bg-gray-50 px-5 py-8 sm:px-8 lg:ml-64 lg:px-10">
+      <StaffSidebar />
+      <div className="mx-auto max-w-5xl pt-16 lg:pt-8">
         <Link to="/staff" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
           <ArrowLeft size={16} /> Back to dashboard
         </Link>
@@ -100,11 +149,32 @@ function StaffIssueDetails() {
                 <div><dt className="text-slate-500">Assigned department</dt><dd className="mt-1 font-medium text-slate-800">{issue.assignedDepartment || "Unassigned"}</dd></div>
                 <div><dt className="text-slate-500">Assigned person</dt><dd className="mt-1 font-medium text-slate-800">{issue.assignedTo?.name || "Unassigned"}</dd></div>
                 <div><dt className="text-slate-500">Reported</dt><dd className="mt-1 font-medium text-slate-800">{issue.date}</dd></div>
+                <div><dt className="text-slate-500">Student voice</dt><dd className="mt-1 font-medium capitalize text-slate-800">{issue.type || "problem"}</dd></div>
+                <div><dt className="text-slate-500">Students affected</dt><dd className="mt-1 font-medium text-slate-800">{issue.affected || 1}</dd></div>
               </dl>
+              {issue.affectedStudents?.length > 0 && (
+                <details className="mt-4 rounded-lg border border-gray-200 p-3">
+                  <summary className="cursor-pointer text-sm font-medium text-slate-700">View students who also reported being affected ({issue.affectedStudents.length})</summary>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                    {issue.affectedStudents.map((student) => <li key={student.id}>{student.name}</li>)}
+                  </ul>
+                </details>
+              )}
               {issue.resolutionNote && (
                 <section className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-                  <h2 className="font-semibold text-emerald-900">Resolution</h2>
+                  <h2 className="font-semibold text-emerald-900">{issue.statusCode === "pending_verification" ? "Awaiting student verification" : "Resolution"}</h2>
                   <p className="mt-1 text-sm text-emerald-800">{issue.resolutionNote}</p>
+                  {issue.evidence?.length > 0 && (
+                    <ul className="mt-3 space-y-2">
+                      {issue.evidence.map((item) => (
+                        <li key={item.id}>
+                          <button type="button" onClick={() => downloadEvidence(item)} className="inline-flex items-center gap-2 text-sm font-medium text-emerald-900 underline">
+                            <Download size={15} /> {item.filename}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </section>
               )}
               <div className="mt-6 flex flex-wrap gap-2 border-t border-gray-100 pt-5">
@@ -122,27 +192,55 @@ function StaffIssueDetails() {
                   const note = window.prompt("Explain why this issue needs more work.");
                   if (note?.trim()) perform(`/api/staff/issues/${encodeURIComponent(id)}/status`, "PUT", { status: "reopened", note: note.trim() }, "Issue reopened.");
                 }} className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-800 disabled:opacity-50">Reopen Issue</button>}
+                {issue.statusCode !== "resolved" && issue.statusCode !== "pending_verification" && (
+                  <button type="button" disabled={saving} onClick={() => {
+                    if (escalationReason.trim() && window.confirm("Escalate this issue for administrator review?")) {
+                      perform(`/api/staff/issues/${encodeURIComponent(id)}/escalate`, "PUT", { reason: escalationReason.trim() }, "Issue escalated for administrator review.");
+                    }
+                  }} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-800 disabled:opacity-50">
+                    <ShieldAlert size={16} className="mr-2 inline" />Escalate
+                  </button>
+                )}
               </div>
+              {issue.statusCode !== "resolved" && issue.statusCode !== "pending_verification" && (
+                <label className="mt-4 block text-sm font-medium text-slate-700">
+                  Escalation reason
+                  <input value={escalationReason} onChange={(event) => setEscalationReason(event.target.value)} maxLength={1000} placeholder="Why does this need administrator attention?" className="mt-1.5 w-full rounded-lg border border-gray-300 px-3 py-2" />
+                </label>
+              )}
+              {issue.escalatedAt && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">Escalated {new Date(issue.escalatedAt).toLocaleString()}: {issue.escalationReason}</p>}
               {issue.statusCode === "in_progress" && (
                 <form
                   className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    if (window.confirm("Confirm that the recorded action resolves this issue?")) {
-                      perform(`/api/staff/issues/${encodeURIComponent(id)}/resolve`, "PUT", { resolutionNote }, "Issue marked as resolved.");
-                    }
-                  }}
+                  onSubmit={submitResolution}
                 >
-                  <label className="block text-sm font-medium text-slate-700" htmlFor="resolution-note">Action taken / resolution</label>
+                  <label className="block text-sm font-medium text-slate-700" htmlFor="resolution-note">Action taken / resolution (required)</label>
                   <textarea id="resolution-note" required maxLength={2000} value={resolutionNote} onChange={(event) => setResolutionNote(event.target.value)} rows={3} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-                  <button type="submit" disabled={saving || !resolutionNote.trim()} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Check size={16} /> Mark Resolved</button>
+                  <label className="mt-4 block text-sm font-medium text-slate-700" htmlFor="resolution-evidence">Proof of resolution (required; JPEG, PNG, WebP, or PDF; total max 1 MB)</label>
+                  <input id="resolution-evidence" type="file" required accept="image/jpeg,image/png,image/webp,application/pdf" multiple onChange={(event) => {
+                    const files = Array.from(event.target.files || []);
+                    const totalBytes = files.reduce((total, file) => total + file.size, 0);
+                    if (files.some((file) => file.size === 0) || totalBytes > 1024 * 1024) {
+                      setError("Choose valid evidence files with a combined size of no more than 1 MB.");
+                      event.target.value = "";
+                      setEvidenceFiles([]);
+                      return;
+                    }
+                    setError("");
+                    setEvidenceFiles(files);
+                  }} className="mt-2 block w-full rounded-lg border border-gray-300 bg-white p-2 text-sm" />
+                  {evidenceFiles.length > 0 && <p className="mt-2 text-xs text-slate-500">{evidenceFiles.length} evidence file(s) selected.</p>}
+                  <button type="submit" disabled={saving || !resolutionNote.trim() || evidenceFiles.length === 0} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Upload size={16} /> Request Student Verification</button>
                 </form>
               )}
             </article>
 
             <div className="mt-5 grid gap-5 lg:grid-cols-2">
               <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 className="font-semibold text-slate-900">Comments and updates</h2>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="font-semibold text-slate-900">Comments and updates</h2>
+                  <button type="button" disabled={saving} onClick={requestInformation} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-gray-50 disabled:opacity-50">Request information</button>
+                </div>
                 <div className="mt-4 space-y-3">
                   {(issue.comments || []).length === 0 ? <p className="text-sm text-slate-500">No comments yet.</p> : issue.comments.map((item) => (
                     <div key={item.id} className="rounded-lg bg-gray-50 p-3">
